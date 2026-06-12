@@ -1,0 +1,1 @@
+"""Typer + Rich presentation layer."""
