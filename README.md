@@ -36,6 +36,12 @@ The Capital.com web platform is built for clicking; `capctl` is built for **repe
 
 See [practical use cases](docs/use-cases.md) for worked, copy-pasteable scenarios.
 
+**Scope:** `capctl` is a command-line application, not a stable Python SDK — the
+internal `capital_cli.*` modules may change between releases without notice. It is
+also short-lived: each command runs as its own process and may create its own API
+session. `capctl session login` is mainly a connectivity/account check; session
+tokens are not persisted between separate invocations.
+
 ## Features
 
 - **Six command groups** covering the main Capital.com Open API workflows — `session`, `market`, `account`, `trade`, `watchlist`, `stream` (see the [API coverage table](docs/api-coverage.md))

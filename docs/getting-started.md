@@ -35,12 +35,30 @@ You now have the three values the CLI needs:
 
 ## 3. Install capctl
 
+**Recommended — one line, no clone** (needs [pipx](https://pipx.pypa.io/)):
+
+```bash
+pipx install git+https://github.com/SimonTarara62/capitalcom-cli.git
+```
+
+Using [uv](https://docs.astral.sh/uv/) instead:
+
+```bash
+uv tool install git+https://github.com/SimonTarara62/capitalcom-cli.git
+```
+
+**Windows** (PowerShell): install Python 3.10+ from python.org (tick "Add
+python.exe to PATH"), then either of the commands above works in PowerShell. If
+`pipx` isn't found, run `python -m pip install --user pipx` then
+`python -m pipx ensurepath` and reopen the terminal.
+
+**For development** (clone + editable install):
+
 ```bash
 git clone https://github.com/SimonTarara62/capitalcom-cli.git
 cd capitalcom-cli
-python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -e .
+python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
 ```
 
 Check it worked:
