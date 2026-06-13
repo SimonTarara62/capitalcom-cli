@@ -137,6 +137,8 @@ These go **before** the command group:
 | Flag | Purpose |
 |------|---------|
 | `--json` | Emit raw JSON instead of tables |
+| `--plain` | Tab-delimited rows for piping (no boxes/colors) |
+| `--no-color` | Disable colored output (also honors `NO_COLOR`) |
 | `--demo` / `--live` | Force environment for this invocation |
 | `--env-file PATH` | Use a specific credentials file |
 | `--account ID`, `-a` | Use a specific account |

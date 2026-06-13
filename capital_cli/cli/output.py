@@ -38,8 +38,15 @@ def _fmt(value: Any) -> str:
 class Output:
     """Renders command results either as Rich tables or as JSON."""
 
-    def __init__(self, json_mode: bool = False, *, no_color: bool | None = None) -> None:
+    def __init__(
+        self,
+        json_mode: bool = False,
+        *,
+        no_color: bool | None = None,
+        plain: bool = False,
+    ) -> None:
         self.json_mode = json_mode
+        self.plain = plain
         self.no_color = resolve_no_color() if no_color is None else no_color
         self.console = Console(no_color=self.no_color)
         self.err = Console(stderr=True, no_color=self.no_color)
@@ -51,6 +58,10 @@ class Output:
         """Render a single object as a two-column key/value table."""
         if self.json_mode:
             self._print_json(payload)
+            return
+        if self.plain:
+            for key, value in payload.items():
+                print(f"{key}\t{_fmt(value)}")
             return
         table = Table(show_header=False, title=title, title_justify="left", expand=False)
         table.add_column("Field", style="bold cyan", no_wrap=True)
@@ -69,6 +80,10 @@ class Output:
         """Render a list of objects as a multi-column table."""
         if self.json_mode:
             self._print_json(list(items))
+            return
+        if self.plain:
+            for item in items:
+                print("\t".join(_fmt(item.get(col)) for col in columns))
             return
         if not items:
             self.console.print("[dim]No results.[/]")
