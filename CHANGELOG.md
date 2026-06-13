@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-13
+
 ### Added
 - `stream candles` — live OHLC candlestick streaming over WebSocket
   (`OHLCMarketData.subscribe`), with selectable resolution and classic or
@@ -33,5 +35,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Persistent state for trade previews and the daily order counter.
 - Documentation: getting-started, use cases, troubleshooting, contributing.
 
-[Unreleased]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/SimonTarara62/capitalcom-cli/releases/tag/v0.1.0

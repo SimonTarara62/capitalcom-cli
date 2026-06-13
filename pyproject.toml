@@ -1,6 +1,6 @@
 [project]
 name = "capitalcom-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "Command-line client for the Capital.com Open API"
 authors = [{name = "Simon Tarara"}]
 readme = "README.md"
