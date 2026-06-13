@@ -41,3 +41,24 @@ def test_console_no_color_applied(monkeypatch):
     assert out.no_color is True
     assert out.console.no_color is True
     assert out.err.no_color is True
+
+
+def test_init_state_honors_no_color_env(monkeypatch):
+    from capital_cli.cli.context import init_state
+
+    monkeypatch.setenv("NO_COLOR", "1")
+    state = init_state(
+        json_mode=False,
+        env_file=None,
+        env=None,
+        account=None,
+        verbose=False,
+        no_color=False,
+        plain=False,
+    )
+    assert state.out.no_color is True
+
+
+def test_no_color_empty_string_disables(monkeypatch):
+    monkeypatch.setenv("NO_COLOR", "")
+    assert resolve_no_color(False) is True

@@ -42,4 +42,4 @@ def init_state(
     if verbose:
         os.environ["CAP_LOG_LEVEL"] = "DEBUG"
     reset_config()
-    return AppState(out=Output(json_mode=json_mode, no_color=no_color, plain=plain))
+    return AppState(out=Output(json_mode=json_mode, no_color=no_color or None, plain=plain))

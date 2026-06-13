@@ -15,7 +15,7 @@ def resolve_no_color(flag: bool = False) -> bool:
     """Decide whether to disable ANSI color (clig.dev / NO_COLOR conventions)."""
     if flag:
         return True
-    if os.environ.get("NO_COLOR"):  # any non-empty value disables color
+    if os.environ.get("NO_COLOR") is not None:  # presence alone disables color (no-color.org)
         return True
     if os.environ.get("CAPCTL_NO_COLOR"):
         return True

@@ -115,7 +115,7 @@ class EpicNotAllowedError(CapitalCLIError):
         allowed_str = ", ".join(allowed) if allowed else "none"
         message = (
             f"Epic '{epic}' is not in the allowlist (allowed: {allowed_str}). "
-            f"Add it to CAP_ALLOWED_EPICS to trade it."
+            "Add it to CAP_ALLOWED_EPICS to trade it."
         )
         super().__init__(
             ErrorCode.EPIC_NOT_ALLOWED,
