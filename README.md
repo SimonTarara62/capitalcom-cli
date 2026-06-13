@@ -389,6 +389,7 @@ Or use the task runner: `make check` (lint + typecheck + test), `make docs`, `ma
 ## Documentation
 
 - [Full CLI reference](docs/CLI.md) — every command and option (auto-generated)
+- [Scripting & automation](docs/scripting.md) — CI credentials, exit codes, jq recipes
 - [Getting started from zero](docs/getting-started.md) — account, API key, install, first trade
 - [Practical use cases](docs/use-cases.md) — what people actually do with capctl, with copy-pasteable scenarios
 - [Troubleshooting](docs/troubleshooting.md) — common errors and exit codes
