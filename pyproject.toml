@@ -1,6 +1,6 @@
 [project]
 name = "capitalcom-cli"
-version = "0.3.0"
+dynamic = ["version"]
 description = "Command-line client for the Capital.com Open API"
 authors = [{name = "Simon Tarara"}]
 readme = "README.md"
@@ -40,6 +40,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["capital_cli", "capital_cli.core", "capital_cli.cli"]
+
+[tool.setuptools.dynamic]
+version = {attr = "capital_cli.__version__"}
 
 [tool.ruff]
 line-length = 100
