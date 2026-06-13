@@ -10,7 +10,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 - Initial release of `capctl`, a command-line client for the Capital.com Open API.
-- Command groups: `session`, `market`, `account`, `trade`, `watchlist`, `stream`.
+- Command groups: `session`, `market`, `account`, `trade`, `watchlist`, `stream`,
+  covering the full Capital.com Open API surface — including server time, session
+  details and encryption key, single and batch client sentiment, market
+  navigation, OHLC prices, account preferences and history, position/order
+  preview, execution, amendment, closing, and cancellation.
 - Two-phase guarded trading (preview → execute) with an allowlist, size and
   daily-order limits, dry-run, and explicit confirmation.
 - Human-readable Rich tables with a global `--json` mode for scripting, and
