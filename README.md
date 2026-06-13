@@ -176,6 +176,7 @@ Price resolutions: `MINUTE`, `MINUTE_5`, `MINUTE_15`, `MINUTE_30`, `HOUR`, `HOUR
 capctl account list
 capctl account prefs-get
 capctl account prefs-set --hedging --yes        # risk-gated
+capctl account prefs-set --leverage CRYPTOCURRENCIES=2 --leverage CURRENCIES=20 --yes
 capctl account history-activity --last 3600
 capctl account history-transactions --last 86400 [--type DEPOSIT]
 capctl account topup 1000 --yes                 # demo environment only
@@ -239,6 +240,8 @@ capctl watchlist delete WATCHLIST_ID --yes
 
 ```bash
 capctl stream prices GOLD,SILVER,EURUSD --duration 120     # live updating table
+capctl stream candles GOLD,BTCUSD --resolution MINUTE_5         # live OHLC candlesticks
+capctl stream candles BTCUSD --resolution HOUR --type heikin-ashi
 capctl stream alerts GOLD 2400 --direction ABOVE           # beep when crossed
 capctl stream portfolio --duration 300 --interval 5        # snapshots for open positions
 ```

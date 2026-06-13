@@ -70,10 +70,28 @@ def prefs_set(
     hedging: bool | None = typer.Option(
         None, "--hedging/--no-hedging", help="Enable/disable hedging mode."
     ),
+    leverage: list[str] | None = typer.Option(
+        None,
+        "--leverage",
+        help="Per asset class, e.g. --leverage CRYPTOCURRENCIES=2 (repeatable). "
+        "Asset classes: SHARES, CURRENCIES, INDICES, CRYPTOCURRENCIES, COMMODITIES.",
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Confirm this risk-gated change."),
 ) -> None:
-    """Set account preferences (risk-gated: requires trading enabled + --yes)."""
+    """Set account preferences: hedging mode and/or per-asset-class leverage (risk-gated)."""
     out = ctx.obj.out
+    leverages: dict[str, int] = {}
+    for item in leverage or []:
+        if "=" not in item:
+            raise typer.BadParameter(f"Leverage must be ASSET=VALUE, got: {item!r}")
+        asset, _, value = item.partition("=")
+        try:
+            leverages[asset.strip().upper()] = int(value)
+        except ValueError:
+            raise typer.BadParameter(f"Leverage value must be an integer: {item!r}") from None
+    if hedging is None and not leverages:
+        raise typer.BadParameter("Provide --hedging/--no-hedging and/or --leverage.")
+
     sm = get_session_manager()
     client = get_client()
     risk = get_risk_engine()
@@ -84,6 +102,8 @@ def prefs_set(
         body: dict[str, Any] = {}
         if hedging is not None:
             body["hedgingMode"] = hedging
+        if leverages:
+            body["leverages"] = leverages
         return (await client.put("/accounts/preferences", json=body)).json()
 
     out.record(run(out, _do, label="account prefs-set"), title="Updated preferences")

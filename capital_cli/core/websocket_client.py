@@ -12,10 +12,23 @@ from websockets.asyncio.client import ClientConnection
 
 from .config import get_config
 from .errors import SessionError, UpstreamError
-from .models import PriceTick
+from .models import OHLCBar, PriceTick
 from .session import get_session_manager
 
 logger = logging.getLogger(__name__)
+
+
+def _ms_to_iso(ms: Any) -> str:
+    """Convert an epoch-milliseconds value to an ISO 8601 'Z' timestamp."""
+    if ms is None:
+        return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    try:
+        return datetime.fromtimestamp(float(ms) / 1000, tz=timezone.utc).isoformat().replace(
+            "+00:00", "Z"
+        )
+    except (TypeError, ValueError, OSError, OverflowError):
+        return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
 
 # Singleton instance
 _websocket_client: Optional["WebSocketClient"] = None
@@ -42,6 +55,8 @@ class WebSocketClient:
         self.session_manager = get_session_manager()
         self._ws: ClientConnection | None = None
         self._subscribed_epics: set[str] = set()
+        self._subscribed_ohlc: set[str] = set()
+        self._ohlc_params: tuple[list[str], list[str], str] | None = None
         self._last_ping: datetime | None = None
 
     async def __aenter__(self) -> "WebSocketClient":
@@ -104,6 +119,8 @@ class WebSocketClient:
             await self._ws.close()
             self._ws = None
             self._subscribed_epics.clear()
+            self._subscribed_ohlc.clear()
+            self._ohlc_params = None
             self._last_ping = None
 
     async def subscribe(self, epics: list[str]) -> None:
@@ -179,15 +196,164 @@ class WebSocketClient:
         except Exception as e:
             logger.warning(f"Failed to unsubscribe from {to_remove}: {e}")
 
+    async def subscribe_ohlc(
+        self, epics: list[str], resolutions: list[str], bar_type: str = "classic"
+    ) -> None:
+        """Subscribe to OHLC candlestick updates for the given EPICs/resolutions."""
+        if len(epics) > 40:
+            raise ValueError(f"Cannot subscribe to more than 40 EPICs (requested: {len(epics)})")
+        if not self._ws:
+            raise SessionError("WebSocket not connected. Call connect() first.")
+        tokens = self.session_manager.client.session_tokens
+        if not tokens:
+            raise SessionError("Not logged in. Cannot subscribe.")
+
+        msg = {
+            "destination": "OHLCMarketData.subscribe",
+            "correlationId": "3",
+            "cst": tokens.cst,
+            "securityToken": tokens.x_security_token,
+            "payload": {"epics": epics, "resolutions": resolutions, "type": bar_type},
+        }
+        try:
+            await self._ws.send(json.dumps(msg))
+            self._ohlc_params = (epics, resolutions, bar_type)
+            for epic in epics:
+                for res in resolutions:
+                    self._subscribed_ohlc.add(f"{epic}:{res}:{bar_type}")
+            logger.debug(f"Subscribed OHLC {epics} {resolutions} {bar_type}")
+        except Exception as e:
+            logger.error(f"Failed to subscribe OHLC {epics}: {e}")
+            raise UpstreamError(f"OHLC subscription failed for {epics}: {e}") from e
+
+    async def unsubscribe_ohlc(self) -> None:
+        """Unsubscribe from all current OHLC subscriptions."""
+        if not self._ws or not self._ohlc_params:
+            return
+        tokens = self.session_manager.client.session_tokens
+        if not tokens:
+            return
+        epics, resolutions, bar_type = self._ohlc_params
+        msg = {
+            "destination": "OHLCMarketData.unsubscribe",
+            "correlationId": "4",
+            "cst": tokens.cst,
+            "securityToken": tokens.x_security_token,
+            "payload": {"epics": epics, "resolutions": resolutions, "types": [bar_type]},
+        }
+        try:
+            await self._ws.send(json.dumps(msg))
+            self._subscribed_ohlc.clear()
+            self._ohlc_params = None
+            logger.debug("Unsubscribed OHLC")
+        except Exception as e:  # noqa: BLE001 - unsubscribe failure is non-fatal
+            logger.warning(f"Failed to unsubscribe OHLC: {e}")
+
+    def _parse_ohlc(self, message: str | bytes) -> OHLCBar | None:
+        """Parse an OHLC candlestick event message; return None for anything else."""
+        try:
+            data = json.loads(message)
+        except (json.JSONDecodeError, ValueError):
+            return None
+        if not isinstance(data, dict) or data.get("destination") != "ohlc.event":
+            return None
+        raw_payload = data.get("payload")
+        payload: dict[str, Any] = raw_payload if isinstance(raw_payload, dict) else data
+        epic = payload.get("epic")
+        if not epic or not all(k in payload for k in ("o", "h", "l", "c")):
+            return None
+        try:
+            return OHLCBar(
+                epic=epic,
+                resolution=str(payload.get("resolution", "MINUTE")),
+                type=str(payload.get("type", "classic")),
+                price_type=str(payload.get("priceType", "bid")),
+                timestamp=_ms_to_iso(payload.get("t")),
+                open=float(payload["o"]),
+                high=float(payload["h"]),
+                low=float(payload["l"]),
+                close=float(payload["c"]),
+            )
+        except (TypeError, ValueError):
+            return None
+
+    async def stream_ohlc(
+        self, duration: float = 300.0, reconnect_attempts: int = 3
+    ) -> AsyncIterator[OHLCBar]:
+        """Stream OHLC candlestick bars (parallel to stream(); yields OHLCBar)."""
+        if not self._ws:
+            raise SessionError("WebSocket not connected. Call connect() first.")
+
+        start_time = datetime.now(timezone.utc)
+        reconnect_count = 0
+        try:
+            while True:
+                elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+                if elapsed >= duration:
+                    logger.info(f"OHLC stream duration {duration}s reached, stopping")
+                    break
+
+                if await self._should_ping():
+                    await self._send_ping()
+
+                try:
+                    timeout = min(duration - elapsed, 10.0)
+                    message = await asyncio.wait_for(self._ws.recv(), timeout=timeout)
+                    bar = self._parse_ohlc(message)
+                    if bar:
+                        yield bar
+                except asyncio.TimeoutError:
+                    continue
+                except websockets.exceptions.ConnectionClosed:
+                    if reconnect_count < reconnect_attempts:
+                        reconnect_count += 1
+                        logger.warning(
+                            f"WebSocket disconnected, reconnecting "
+                            f"({reconnect_count}/{reconnect_attempts})"
+                        )
+                        await asyncio.sleep(2**reconnect_count)
+                        params = self._ohlc_params
+                        await self.close()
+                        await self.connect()
+                        if params:
+                            await self.subscribe_ohlc(*params)
+                        logger.info("Reconnection successful")
+                    else:
+                        logger.error(
+                            f"Max reconnection attempts ({reconnect_attempts}) reached"
+                        )
+                        raise UpstreamError(
+                            "WebSocket connection lost and reconnection failed"
+                        ) from None
+        finally:
+            if self._ohlc_params:
+                await self.unsubscribe_ohlc()
+
     async def _send_ping(self) -> None:
-        """Send ping to keep connection alive."""
-        if self._ws:
-            try:
+        """Keep the connection alive using the documented application-level ping.
+
+        Capital.com's streaming session is kept alive by a JSON ``ping`` message
+        carrying the session tokens (not just a transport-level PING frame). Falls
+        back to a transport ping only if tokens are unavailable.
+        """
+        if not self._ws:
+            return
+        tokens = self.session_manager.client.session_tokens
+        try:
+            if tokens:
+                ping_msg = {
+                    "destination": "ping",
+                    "correlationId": "ping",
+                    "cst": tokens.cst,
+                    "securityToken": tokens.x_security_token,
+                }
+                await self._ws.send(json.dumps(ping_msg))
+            else:
                 await self._ws.ping()
-                self._last_ping = datetime.now(timezone.utc)
-                logger.debug("Sent WebSocket ping")
-            except Exception as e:
-                logger.warning(f"Failed to send ping: {e}")
+            self._last_ping = datetime.now(timezone.utc)
+            logger.debug("Sent keep-alive ping")
+        except Exception as e:  # noqa: BLE001 - ping failure is non-fatal
+            logger.warning(f"Failed to send ping: {e}")
 
     async def _should_ping(self) -> bool:
         """Check if we should send a ping (every 5 minutes)."""

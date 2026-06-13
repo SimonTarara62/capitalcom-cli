@@ -58,3 +58,67 @@ def test_stream_prices_rejects_too_many(runner, mock_stream):
     epics = ",".join(f"E{i}" for i in range(41))
     result = runner.invoke(app, ["stream", "prices", epics])
     assert result.exit_code != 0
+
+
+class _FakeOHLCWS:
+    """Async context manager yielding canned OHLC bars then stopping."""
+
+    def __init__(self, bars):
+        self._bars = bars
+        self.ohlc_sub = None
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return None
+
+    async def subscribe_ohlc(self, epics, resolutions, bar_type="classic"):
+        self.ohlc_sub = (epics, resolutions, bar_type)
+
+    async def stream_ohlc(self, duration=300.0):
+        for b in self._bars:
+            yield b
+
+
+@pytest.fixture
+def mock_ohlc_stream(monkeypatch):
+    from capital_cli.core.models import OHLCBar
+
+    sm = MagicMock()
+    sm.ensure_logged_in = AsyncMock()
+    monkeypatch.setattr("capital_cli.cli.stream_cmds.get_session_manager", lambda: sm)
+
+    bars = [
+        OHLCBar(
+            epic="BTCUSD",
+            resolution="MINUTE",
+            type="classic",
+            price_type="bid",
+            timestamp="2026-06-13T00:00:00Z",
+            open=1.0,
+            high=2.0,
+            low=0.5,
+            close=1.5,
+        )
+    ]
+    fake = _FakeOHLCWS(bars)
+    monkeypatch.setattr("capital_cli.cli.stream_cmds.get_websocket_client", lambda: fake)
+    return fake
+
+
+def test_stream_candles_collects_bars(runner, mock_ohlc_stream):
+    result = runner.invoke(
+        app, ["--json", "stream", "candles", "BTCUSD", "--resolution", "MINUTE", "--duration", "1"]
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["bars_received"] >= 1
+    assert payload["resolution"] == "MINUTE"
+    assert payload["type"] == "classic"
+    assert mock_ohlc_stream.ohlc_sub == (["BTCUSD"], ["MINUTE"], "classic")
+
+
+def test_stream_candles_rejects_bad_type(runner, mock_ohlc_stream):
+    result = runner.invoke(app, ["stream", "candles", "BTCUSD", "--type", "invalid"])
+    assert result.exit_code != 0
