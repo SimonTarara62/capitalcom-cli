@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `stream candles` — live OHLC candlestick streaming over WebSocket
+  (`OHLCMarketData.subscribe`), with selectable resolution and classic or
+  heikin-ashi bars.
+- `account prefs-set --leverage ASSET=VALUE` — configure per-asset-class leverage.
+
+### Changed
+- WebSocket keep-alive now uses the documented application-level `ping` message,
+  keeping streaming sessions alive for their full lifetime.
+
 ## [0.1.0] - 2026-06-13
 
 ### Added

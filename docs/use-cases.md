@@ -93,6 +93,13 @@ df = pd.read_csv("gold_daily.csv", names=["time", "open", "high", "low", "close"
 print(df["close"].pct_change().describe())
 ```
 
+Prefer live candles over polling? Stream OHLC bars straight to a file:
+
+```bash
+capctl --json stream candles BTCUSD --resolution MINUTE_5 --duration 600 \
+  | jq -c '.bars[]' >> btc_5m_live.jsonl
+```
+
 Resolutions go from `MINUTE` to `WEEK`, so the same one-liner covers intraday
 research and long-term studies.
 
