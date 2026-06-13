@@ -121,6 +121,16 @@ def test_parse_ohlc_missing_fields_returns_none():
     assert client._parse_ohlc(msg) is None
 
 
+def test_parse_ohlc_infinite_timestamp_does_not_raise():
+    client = WebSocketClient()
+    # json.loads accepts Infinity by default; a bad timestamp must not crash the parser.
+    msg = '{"destination": "ohlc.event", "payload": {"epic": "BTCUSD", "resolution": "MINUTE", "t": Infinity, "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5}}'
+    result = client._parse_ohlc(msg)  # must not raise
+    # With a fallback timestamp the bar parses fine; the point is no exception escaped.
+    from capital_cli.core.models import OHLCBar
+    assert result is None or isinstance(result, OHLCBar)
+
+
 def test_send_ping_uses_application_message():
     client = WebSocketClient()
     sent: list[str] = []

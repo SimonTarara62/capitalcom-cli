@@ -26,7 +26,7 @@ def _ms_to_iso(ms: Any) -> str:
         return datetime.fromtimestamp(float(ms) / 1000, tz=timezone.utc).isoformat().replace(
             "+00:00", "Z"
         )
-    except (TypeError, ValueError, OSError):
+    except (TypeError, ValueError, OSError, OverflowError):
         return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
