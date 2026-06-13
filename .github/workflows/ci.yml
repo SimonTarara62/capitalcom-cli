@@ -26,6 +26,6 @@ jobs:
       - name: Lint (ruff)
         run: ruff check capital_cli tests
       - name: Type-check (mypy)
-        run: mypy capital_cli/cli
+        run: mypy capital_cli
       - name: Test (offline suite)
         run: pytest -q
