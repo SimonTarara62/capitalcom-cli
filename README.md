@@ -90,6 +90,17 @@ capctl --version
 capctl --install-completion
 ```
 
+### Shell completion
+
+capctl ships completion for bash, zsh, and fish (via Typer):
+
+```bash
+capctl --install-completion        # install for your current shell
+capctl --show-completion           # print the script (to inspect or source manually)
+```
+
+Restart your shell (or `source` your rc file) after installing.
+
 ## Configuration
 
 Generate an API key in the Capital.com platform under **Settings → API integrations**, then:
