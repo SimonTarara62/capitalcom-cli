@@ -360,7 +360,7 @@ The `cli/` layer never talks to the API directly — every command parses argume
 pip install -e ".[dev]"
 pytest -q              # full test suite
 ruff check .           # lint
-mypy capital_cli/cli   # type-check the CLI layer
+mypy capital_cli       # type-check the whole package (matches CI)
 ```
 
 An opt-in end-to-end suite runs against the real demo API (credentials required):
@@ -371,8 +371,11 @@ CAPCTL_E2E=1 pytest tests/e2e -m e2e -v
 
 Tests mock the HTTP and WebSocket layers — no network or credentials needed.
 
+Or use the task runner: `make check` (lint + typecheck + test), `make docs`, `make e2e`.
+
 ## Documentation
 
+- [Full CLI reference](docs/CLI.md) — every command and option (auto-generated)
 - [Getting started from zero](docs/getting-started.md) — account, API key, install, first trade
 - [Practical use cases](docs/use-cases.md) — what people actually do with capctl, with copy-pasteable scenarios
 - [Troubleshooting](docs/troubleshooting.md) — common errors and exit codes
