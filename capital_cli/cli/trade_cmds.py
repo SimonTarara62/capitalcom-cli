@@ -195,6 +195,9 @@ def preview_position(
     profit_distance: float | None = typer.Option(None, "--profit-distance"),
     guaranteed_stop: bool = typer.Option(False, "--guaranteed-stop"),
     trailing_stop: bool = typer.Option(False, "--trailing-stop"),
+    auto_normalize_size: bool = typer.Option(
+        False, "--auto-normalize-size", help="Round size to the broker increment instead of failing."
+    ),
 ) -> None:
     """Validate a position against risk policy and return a preview_id (no trade)."""
     out = ctx.obj.out
@@ -214,6 +217,7 @@ def preview_position(
             stop_distance=stop_distance,
             profit_level=profit_level,
             profit_distance=profit_distance,
+            auto_normalize_size=auto_normalize_size,
         )
         return _preview_payload(await risk.preview_position(request))
 
@@ -244,6 +248,9 @@ def preview_order(
     stop_level: float | None = typer.Option(None, "--stop-level"),
     profit_level: float | None = typer.Option(None, "--profit-level"),
     good_till_date: str | None = typer.Option(None, "--good-till", help="Expiry ISO 8601."),
+    auto_normalize_size: bool = typer.Option(
+        False, "--auto-normalize-size", help="Round size to the broker increment instead of failing."
+    ),
 ) -> None:
     """Validate a working order and return a preview_id (no order created)."""
     out = ctx.obj.out
@@ -263,6 +270,7 @@ def preview_order(
             stop_level=stop_level,
             profit_level=profit_level,
             good_till_date=good_till_date,
+            auto_normalize_size=auto_normalize_size,
         )
         return _preview_payload(await risk.preview_working_order(request))
 

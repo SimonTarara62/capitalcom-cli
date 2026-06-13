@@ -159,6 +159,9 @@ class PreviewPositionRequest(BaseModel):
     profit_level: float | None = Field(default=None, description="Take profit level")
     profit_distance: float | None = Field(default=None, description="Take profit distance")
     profit_amount: float | None = Field(default=None, description="Take profit amount")
+    auto_normalize_size: bool = Field(
+        default=False, description="Round size to the broker increment instead of failing"
+    )
 
 
 class PreviewWorkingOrderRequest(BaseModel):
@@ -178,6 +181,9 @@ class PreviewWorkingOrderRequest(BaseModel):
     profit_distance: float | None = Field(default=None, description="Take profit distance")
     profit_amount: float | None = Field(default=None, description="Take profit amount")
     good_till_date: str | None = Field(default=None, description="Good till date (ISO 8601)")
+    auto_normalize_size: bool = Field(
+        default=False, description="Round size to the broker increment instead of failing"
+    )
 
 
 class RiskCheck(BaseModel):
