@@ -54,3 +54,28 @@ def test_auto_normalize_still_fails_if_rounding_crosses_minimum():
     assert check.passed is False
     assert effective == 0.0124
     assert "0.01" in check.message  # mentions the out-of-range rounded value
+
+
+def test_mutation_guard_blocks_in_dry_run():
+    from capital_cli.core.config import get_config
+    from capital_cli.core.errors import DryRunError
+
+    cfg = get_config()
+    cfg.cap_dry_run = True
+    try:
+        with pytest.raises(DryRunError):
+            RiskEngine().validate_mutation_guards(confirm=True)
+    finally:
+        cfg.cap_dry_run = False
+
+
+def test_mutation_guard_requires_confirm():
+    from capital_cli.core.errors import ConfirmRequiredError
+
+    with pytest.raises(ConfirmRequiredError):
+        RiskEngine().validate_mutation_guards(confirm=False)
+
+
+def test_mutation_guard_allows_without_trading_enabled():
+    # Trading is disabled by default in the test config; a mutation must still be allowed.
+    RiskEngine().validate_mutation_guards(confirm=True)  # must not raise

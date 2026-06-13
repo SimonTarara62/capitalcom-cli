@@ -382,6 +382,22 @@ class RiskEngine:
                     code="PREVIEW_CHECKS_FAILED",
                 )
 
+    def validate_mutation_guards(self, *, confirm: bool) -> None:
+        """Validate guards for account/settings mutations (not trade execution).
+
+        Unlike trade execution, this does NOT require CAP_ALLOW_TRADING — changing
+        account preferences is risk-sensitive but is not opening or closing a trade.
+        Still blocked by dry-run mode and the explicit-confirm requirement.
+
+        Raises:
+            DryRunError: If dry-run mode is enabled.
+            ConfirmRequiredError: If confirmation is required but not provided.
+        """
+        if self.config.cap_dry_run:
+            raise DryRunError()
+        if self.config.cap_require_explicit_confirm and not confirm:
+            raise ConfirmRequiredError()
+
 
 # Global risk engine instance
 _risk_engine: RiskEngine | None = None
