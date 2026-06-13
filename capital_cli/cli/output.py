@@ -117,3 +117,7 @@ class Output:
     def success(self, message: str) -> None:
         if not self.json_mode:
             self.err.print(f"[green]✓[/] {message}")
+
+    def banner_live(self) -> None:
+        """Loud stderr banner before a live (real-money) action."""
+        self.err.print("[bold white on red] ⚠  LIVE ACCOUNT — real money  [/]")
