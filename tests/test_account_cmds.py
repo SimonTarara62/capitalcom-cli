@@ -78,7 +78,7 @@ def _arm_prefs(monkeypatch):
     from unittest.mock import MagicMock
 
     risk = MagicMock()
-    risk.validate_execution_guards = MagicMock(return_value=None)
+    risk.validate_mutation_guards = MagicMock(return_value=None)
     monkeypatch.setattr("capital_cli.cli.account_cmds.get_risk_engine", lambda: risk)
     return risk
 
