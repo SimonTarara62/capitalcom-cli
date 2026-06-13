@@ -343,4 +343,5 @@ def test_demo_shows_no_live_banner():
         env=env,
         cwd=REPO,
     )
+    assert proc.returncode == 0, proc.stderr
     assert "LIVE ACCOUNT" not in proc.stderr
