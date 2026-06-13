@@ -2,6 +2,9 @@
 
 Thanks for considering a contribution!
 
+New here? See [good first issues](docs/good-first-issues.md) for small, well-scoped
+starter tasks, or browse issues labelled `good first issue` on GitHub.
+
 ## Development setup
 
 ```bash

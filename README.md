@@ -4,6 +4,11 @@ A fast, scriptable command-line client for the [Capital.com](https://capital.com
 
 Browse markets, manage accounts and watchlists, preview and execute trades behind multiple safety guardrails, and stream real-time prices — from your terminal, in human-readable tables or raw JSON for automation.
 
+[![CI](https://github.com/SimonTarara62/capitalcom-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/SimonTarara62/capitalcom-cli/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Release](https://img.shields.io/github/v/release/SimonTarara62/capitalcom-cli?sort=semver)](https://github.com/SimonTarara62/capitalcom-cli/releases)
+
 ```text
 $ capctl market search "gold"
 Markets
@@ -45,6 +50,26 @@ See [practical use cases](docs/use-cases.md) for worked, copy-pasteable scenario
 
 Requires Python 3.10+.
 
+**One-line install (recommended)** — isolated, global `capctl` command, no clone:
+
+```bash
+pipx install git+https://github.com/SimonTarara62/capitalcom-cli.git
+```
+
+Using [uv](https://docs.astral.sh/uv/) instead of pipx:
+
+```bash
+uv tool install git+https://github.com/SimonTarara62/capitalcom-cli.git
+```
+
+Plain pip (into the active environment):
+
+```bash
+pip install git+https://github.com/SimonTarara62/capitalcom-cli.git
+```
+
+**From a clone (for development):**
+
 ```bash
 git clone https://github.com/SimonTarara62/capitalcom-cli.git
 cd capitalcom-cli
@@ -52,15 +77,10 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
 ```
 
-For a global, isolated install of just the `capctl` command:
+Verify and enable shell completion (bash/zsh/fish, provided by Typer):
 
 ```bash
-pipx install .
-```
-
-Enable shell completion (bash/zsh/fish, provided by Typer):
-
-```bash
+capctl --version
 capctl --install-completion
 ```
 
@@ -351,4 +371,9 @@ Tests mock the HTTP and WebSocket layers — no network or credentials needed.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Licensed under the Apache License, Version 2.0. You may obtain a copy at
+<http://www.apache.org/licenses/LICENSE-2.0>. Unless required by applicable law
+or agreed to in writing, software distributed under the License is distributed
+on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND.

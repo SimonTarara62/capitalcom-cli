@@ -1,0 +1,46 @@
+name: Bug report
+description: Report something that isn't working as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Never include your API key, password, or `.env`
+        contents — command output does not contain secrets.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you run, what did you expect, and what did you get?
+      placeholder: |
+        Command: capctl ...
+        Expected: ...
+        Actual: ...
+    validations:
+      required: true
+  - type: input
+    id: exit-code
+    attributes:
+      label: Exit code (if a command failed)
+      placeholder: "e.g. 7"
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: Paste the output. Re-run with --verbose if helpful.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: capctl version
+      description: Output of `capctl --version`.
+      placeholder: "capctl 0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS and Python version
+      placeholder: "macOS 14, Python 3.12"
+    validations:
+      required: true
