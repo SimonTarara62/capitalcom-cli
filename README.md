@@ -373,6 +373,7 @@ Tests mock the HTTP and WebSocket layers — no network or credentials needed.
 
 ## Documentation
 
+- [Full CLI reference](docs/CLI.md) — every command and option (auto-generated)
 - [Getting started from zero](docs/getting-started.md) — account, API key, install, first trade
 - [Practical use cases](docs/use-cases.md) — what people actually do with capctl, with copy-pasteable scenarios
 - [Troubleshooting](docs/troubleshooting.md) — common errors and exit codes

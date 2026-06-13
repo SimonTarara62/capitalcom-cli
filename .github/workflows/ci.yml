@@ -29,3 +29,7 @@ jobs:
         run: mypy capital_cli
       - name: Test (offline suite)
         run: pytest -q
+      - name: CLI reference is up to date
+        run: |
+          typer capital_cli.cli.app utils docs --name capctl --output docs/CLI.md
+          git diff --exit-code docs/CLI.md
