@@ -1,9 +1,12 @@
 """HTTP client wrapper for Capital.com API."""
 
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
+
+from capital_cli import __version__
 
 from .config import get_config
 from .errors import SessionError, UpstreamError, redact_secrets
@@ -21,6 +24,11 @@ class CapitalClient:
         self.rate_limiter = get_rate_limiter()
         self.session_tokens: SessionTokens | None = None
         self._client: httpx.AsyncClient | None = None
+        self._relogin: Callable[[], Awaitable[None]] | None = None
+
+    def set_relogin(self, callback: Callable[[], Awaitable[None]]) -> None:
+        """Register an async callback used to force a re-login on auth expiry."""
+        self._relogin = callback
 
     def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
@@ -31,6 +39,10 @@ class CapitalClient:
                 headers={
                     "Content-Type": "application/json",
                     "Accept": "application/json",
+                    "User-Agent": (
+                        f"capitalcom-cli/{__version__} "
+                        "(+https://github.com/SimonTarara62/capitalcom-cli)"
+                    ),
                 },
             )
         return self._client
@@ -119,14 +131,15 @@ class CapitalClient:
 
         # Prepare request
         client = self._get_client()
-        headers = self._get_auth_headers()
         url = path
 
         self._log_request(method, url, json=json, params=params)
 
         # Retry logic
         last_exception: Exception | None = None
+        auth_retried = False
         for attempt in range(max_retries):
+            headers = self._get_auth_headers()
             try:
                 response = await client.request(
                     method=method,
@@ -140,11 +153,16 @@ class CapitalClient:
 
                 # Handle auth errors
                 if response.status_code in (401, 403):
-                    if retry_on_auth_error and attempt == 0:
-                        logger.warning("Auth error, session may have expired")
-                        raise SessionError(
-                            "Session expired or invalid", code="SESSION_EXPIRED"
-                        )
+                    if (
+                        retry_on_auth_error
+                        and not auth_retried
+                        and self._relogin is not None
+                        and method.upper() == "GET"
+                    ):
+                        auth_retried = True
+                        logger.warning("Auth error on GET; re-logging in and retrying once")
+                        await self._relogin()
+                        continue
                     raise SessionError(
                         f"Authentication failed: {response.status_code}",
                         code="AUTH_FAILED",

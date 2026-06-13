@@ -78,7 +78,7 @@ def _arm_prefs(monkeypatch):
     from unittest.mock import MagicMock
 
     risk = MagicMock()
-    risk.validate_execution_guards = MagicMock(return_value=None)
+    risk.validate_mutation_guards = MagicMock(return_value=None)
     monkeypatch.setattr("capital_cli.cli.account_cmds.get_risk_engine", lambda: risk)
     return risk
 
@@ -121,4 +121,19 @@ def test_prefs_set_bad_leverage_format(runner, mock_account, monkeypatch):
     _arm_prefs(monkeypatch)
     result = runner.invoke(app, ["account", "prefs-set", "--leverage", "CRYPTO", "--yes"])
     assert result.exit_code == 2
+    mock_account.put.assert_not_awaited()
+
+
+def test_prefs_set_leverage_works_without_trading_enabled(runner, mock_account):
+    # No risk-engine patching: with the REAL guards and trading disabled, prefs-set
+    # must NOT require CAP_ALLOW_TRADING — only --yes.
+    mock_account.put.return_value.json.return_value = {"status": "SUCCESS"}
+    result = runner.invoke(app, ["account", "prefs-set", "--leverage", "SHARES=5", "--yes"])
+    assert result.exit_code == 0
+    assert mock_account.put.await_args.kwargs["json"] == {"leverages": {"SHARES": 5}}
+
+
+def test_prefs_set_still_requires_confirm(runner, mock_account):
+    result = runner.invoke(app, ["account", "prefs-set", "--leverage", "SHARES=5"])
+    assert result.exit_code == 4  # CONFIRM_REQUIRED
     mock_account.put.assert_not_awaited()

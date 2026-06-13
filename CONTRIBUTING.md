@@ -19,7 +19,7 @@ pip install -e ".[dev]"
 ```bash
 pytest -q              # unit tests (offline, no credentials needed)
 ruff check .           # lint
-mypy capital_cli/cli   # type-check the CLI layer
+mypy capital_cli       # type-check the whole package
 ```
 
 There is also an opt-in end-to-end suite that hits the real demo API and

@@ -98,7 +98,7 @@ def prefs_set(
 
     async def _do() -> dict[str, Any]:
         await sm.ensure_logged_in()
-        risk.validate_execution_guards(confirm=yes)
+        risk.validate_mutation_guards(confirm=yes)
         body: dict[str, Any] = {}
         if hedging is not None:
             body["hedgingMode"] = hedging

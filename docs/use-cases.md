@@ -164,8 +164,7 @@ esac
 **Who:** developers building their own Capital.com integration in any language.
 **Value:** `--json` output is the real API response — so instead of reading
 docs and guessing, you poke the live (demo) API from your shell and see exactly
-what comes back, with authentication, session keep-alive, and rate limiting
-already handled.
+what comes back, with authentication and rate limiting already handled.
 
 ```bash
 capctl --json market get BTCUSD | jq '.dealingRules'   # what sizes are legal?

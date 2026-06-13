@@ -74,38 +74,59 @@ class RiskEngine:
         response = await self.client.get(f"/markets/{epic}")
         return response.json()
 
-    def _normalize_size(
+    def _validate_size(
         self,
         size: float,
         min_size: float,
         max_size: float,
         increment: float,
-    ) -> tuple[float, list[str]]:
+        *,
+        auto_normalize: bool,
+    ) -> tuple[float, RiskCheck]:
+        """Validate the requested size against broker dealing rules WITHOUT silently
+        changing it.
+
+        Returns (effective_size, check). The effective size equals the requested
+        size, except that increment misalignment is rounded ONLY when auto_normalize
+        is True. Sizes below the broker minimum or above the broker maximum always
+        fail (they are never silently clamped to the boundary).
         """
-        Normalize position/order size to broker requirements.
-
-        Returns:
-            (normalized_size, warnings)
-        """
-        warnings: list[str] = []
-
-        # Round to nearest increment
-        normalized = round(size / increment) * increment
-
-        if abs(normalized - size) > 0.0001:
-            warnings.append(
-                f"Size rounded from {size} to {normalized} (increment: {increment})"
+        if size < min_size:
+            return size, RiskCheck(
+                check="size",
+                passed=False,
+                message=f"Size {size} is below the broker minimum {min_size}. Use at least {min_size}.",
             )
-
-        # Clamp to min/max
-        if normalized < min_size:
-            normalized = min_size
-            warnings.append(f"Size increased to minimum: {min_size}")
-        elif normalized > max_size:
-            normalized = max_size
-            warnings.append(f"Size decreased to maximum: {max_size}")
-
-        return normalized, warnings
+        if size > max_size:
+            return size, RiskCheck(
+                check="size",
+                passed=False,
+                message=f"Size {size} is above the broker maximum {max_size}. Use at most {max_size}.",
+            )
+        rounded = round(size / increment) * increment if increment else size
+        tol = max(increment * 1e-4, 1e-9)
+        if abs(rounded - size) <= tol:
+            return size, RiskCheck(check="size", passed=True, message=f"Size {size} is valid.")
+        if not auto_normalize:
+            return size, RiskCheck(
+                check="size",
+                passed=False,
+                message=(
+                    f"Size {size} is not a multiple of the broker increment {increment}. "
+                    f"Nearest valid size is {rounded}. Re-run with --auto-normalize-size to use {rounded}."
+                ),
+            )
+        if rounded < min_size or rounded > max_size:
+            return size, RiskCheck(
+                check="size",
+                passed=False,
+                message=f"Size {size} rounds to {rounded}, outside the broker range [{min_size}, {max_size}].",
+            )
+        return rounded, RiskCheck(
+            check="size",
+            passed=True,
+            message=f"Size normalized from {size} to {rounded} (increment {increment}).",
+        )
 
     async def preview_position(
         self, request: PreviewPositionRequest
@@ -198,21 +219,29 @@ class RiskEngine:
         max_deal_size = dealing_rules.get("maxDealSize", {}).get("value", 1000.0)
         min_size_increment = dealing_rules.get("minSizeIncrement", {}).get("value", 0.1)
 
-        # Check 4: Normalize size
-        normalized_size, size_warnings = self._normalize_size(
+        # Check 4: Validate size against broker dealing rules (no silent changes)
+        effective_size, size_check = self._validate_size(
             request.size,
             min_deal_size,
             max_deal_size,
             min_size_increment,
+            auto_normalize=request.auto_normalize_size,
         )
+        checks.append(size_check)
+        if not size_check.passed:
+            return PreviewResult(
+                normalized_request={"requested_size": request.size},
+                checks=checks,
+                all_checks_passed=False,
+            )
 
         # Check 5: Max position size policy
-        if normalized_size > self.config.cap_max_position_size:
+        if effective_size > self.config.cap_max_position_size:
             checks.append(
                 RiskCheck(
                     check="max_position_size",
                     passed=False,
-                    message=f"Size {normalized_size} exceeds policy limit {self.config.cap_max_position_size}",
+                    message=f"Size {effective_size} exceeds policy limit {self.config.cap_max_position_size}",
                 )
             )
             return PreviewResult(
@@ -225,14 +254,13 @@ class RiskEngine:
             RiskCheck(
                 check="max_position_size",
                 passed=True,
-                message=f"Size {normalized_size} within limit {self.config.cap_max_position_size}",
+                message=f"Size {effective_size} within limit {self.config.cap_max_position_size}",
             )
         )
 
         # Build normalized request (mode='json' to serialize enums as strings)
-        normalized_request = request.model_dump(mode='json')
-        normalized_request["size"] = normalized_size
-        normalized_request["size_warnings"] = size_warnings
+        normalized_request = request.model_dump(mode="json")
+        normalized_request["size"] = effective_size
 
         # Extract snapshot for entry price estimate
         snapshot = market_data.get("snapshot", {})
@@ -275,6 +303,7 @@ class RiskEngine:
             profit_level=request.profit_level,
             profit_distance=request.profit_distance,
             profit_amount=request.profit_amount,
+            auto_normalize_size=request.auto_normalize_size,
         )
 
         # Run position checks
@@ -352,6 +381,22 @@ class RiskEngine:
                     "Preview checks failed, cannot execute",
                     code="PREVIEW_CHECKS_FAILED",
                 )
+
+    def validate_mutation_guards(self, *, confirm: bool) -> None:
+        """Validate guards for account/settings mutations (not trade execution).
+
+        Unlike trade execution, this does NOT require CAP_ALLOW_TRADING — changing
+        account preferences is risk-sensitive but is not opening or closing a trade.
+        Still blocked by dry-run mode and the explicit-confirm requirement.
+
+        Raises:
+            DryRunError: If dry-run mode is enabled.
+            ConfirmRequiredError: If confirmation is required but not provided.
+        """
+        if self.config.cap_dry_run:
+            raise DryRunError()
+        if self.config.cap_require_explicit_confirm and not confirm:
+            raise ConfirmRequiredError()
 
 
 # Global risk engine instance

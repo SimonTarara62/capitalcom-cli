@@ -250,3 +250,27 @@ def test_amend_order_no_fields_is_usage_error(runner, mock_trade, monkeypatch):
     result = runner.invoke(app, ["trade", "amend-order", "D2", "--yes"])
     assert result.exit_code == 2
     mock_trade.put.assert_not_awaited()
+
+
+def test_preview_position_passes_auto_normalize_flag(runner, monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    sm = MagicMock()
+    sm.ensure_logged_in = AsyncMock()
+    monkeypatch.setattr("capital_cli.cli.trade_cmds.get_session_manager", lambda: sm)
+    preview = MagicMock()
+    preview.preview_id = "PV1"
+    preview.normalized_request = {"epic": "GOLD"}
+    preview.checks = []
+    preview.all_checks_passed = True
+    preview.estimated_entry = 1.0
+    preview.estimated_risk_notes = "x"
+    risk = MagicMock()
+    risk.preview_position = AsyncMock(return_value=preview)
+    monkeypatch.setattr("capital_cli.cli.trade_cmds.get_risk_engine", lambda: risk)
+
+    result = runner.invoke(
+        app, ["--json", "trade", "preview-position", "GOLD", "BUY", "0.5", "--auto-normalize-size"]
+    )
+    assert result.exit_code == 0
+    assert risk.preview_position.await_args.args[0].auto_normalize_size is True

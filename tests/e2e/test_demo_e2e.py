@@ -9,9 +9,12 @@ Requirements:
 - CAP_ALLOW_TRADING=true with BTCUSD allowed (or ALL)
 - CAP_WS_ENABLED=true for the streaming test
 
-Side effects on the DEMO account: creates and deletes one watchlist, and
-opens, amends, and closes one minimum-size BTCUSD position. Tests are
-order-dependent (numbered) and share state via the module-level _ctx dict.
+Side effects on the DEMO account: creates and deletes one watchlist, and — ONLY
+when CAPCTL_E2E_TRADING=I_UNDERSTAND is also set — opens, amends, and closes one
+minimum-size BTCUSD position and re-sets (unchanged) the crypto leverage. The
+preview-only size-validation tests open nothing. Tests are order-dependent
+(numbered) and share state via the module-level _ctx dict. A module finalizer
+best-effort closes any position left open by a failed run.
 """
 
 import json
@@ -22,6 +25,7 @@ import time
 from pathlib import Path
 
 import pytest
+import pytest as _pytest
 
 pytestmark = pytest.mark.e2e
 
@@ -34,6 +38,28 @@ STATE_FILE = REPO / ".pytest_cache" / "e2e_state.json"
 EPIC = "BTCUSD"  # trades 24/7, so the suite is not market-hours dependent
 
 _ctx: dict = {}  # shared across the ordered tests in this module
+
+_TRADING_OK = os.environ.get("CAPCTL_E2E_TRADING") == "I_UNDERSTAND"
+requires_trading = _pytest.mark.skipif(
+    not _TRADING_OK,
+    reason="set CAPCTL_E2E_TRADING=I_UNDERSTAND to run tests that open/amend/close a demo position",
+)
+
+
+@_pytest.fixture(scope="module", autouse=True)
+def _close_leftover_position():
+    """After the module runs, best-effort close any position this suite opened."""
+    yield
+    deal_id = _ctx.get("deal_id")
+    if not deal_id:
+        return
+    try:
+        positions = capctl("trade", "positions")
+        ids = [p.get("position", {}).get("dealId") for p in positions.get("positions", [])]
+        if deal_id in ids:
+            capctl("trade", "close", deal_id, "--yes", "--timeout", "30", expect_code=0)
+    except Exception:
+        pass
 
 
 def capctl(*args: str, expect_code: int = 0) -> dict:
@@ -132,6 +158,7 @@ def test_09_watchlist_lifecycle():
         capctl("watchlist", "delete", wl_id, "--yes")
 
 
+@requires_trading
 def test_10_preview_position():
     data = capctl("trade", "preview-position", EPIC, "BUY", "0.001")
     assert data.get("all_checks_passed") is True, data.get("checks")
@@ -139,6 +166,7 @@ def test_10_preview_position():
     _ctx["preview_id"] = data["preview_id"]
 
 
+@requires_trading
 def test_11_execute_position():
     """Opens a real (minimum-size) BTCUSD position on the DEMO account."""
     data = capctl("trade", "execute-position", _ctx["preview_id"], "--yes", "--timeout", "30")
@@ -165,12 +193,14 @@ def test_11_execute_position():
     _ctx["deal_id"] = deal_id
 
 
+@requires_trading
 def test_12_position_visible():
     data = capctl("trade", "positions")
     ids = [p.get("position", {}).get("dealId") for p in data.get("positions", [])]
     assert _ctx["deal_id"] in ids, ids
 
 
+@requires_trading
 def test_13_amend_position():
     """Amend the open position's stop/limit to safe far-from-market levels."""
     pos = capctl("trade", "position", _ctx["deal_id"])
@@ -187,12 +217,14 @@ def test_13_amend_position():
     assert conf.get("status") == "ACCEPTED", conf
 
 
+@requires_trading
 def test_14_close_position():
     data = capctl("trade", "close", _ctx["deal_id"], "--yes", "--timeout", "30")
     conf = data.get("confirmation") or {}
     assert conf.get("status") == "ACCEPTED", conf
 
 
+@requires_trading
 def test_15_position_gone():
     data = capctl("trade", "positions")
     ids = [p.get("position", {}).get("dealId") for p in data.get("positions", [])]
@@ -248,6 +280,7 @@ def test_23_stream_candles():
     assert data["bars"][0]["resolution"] == "MINUTE"
 
 
+@requires_trading
 def test_24_leverage_roundtrip():
     """Read the current CRYPTOCURRENCIES leverage and re-set it to the same value."""
     prefs = capctl("account", "prefs-get")
@@ -261,5 +294,35 @@ def test_24_leverage_roundtrip():
     assert int(current2) == int(current), after
 
 
-def test_25_logout():
+def test_25_preview_below_minimum_size_fails():
+    """A size below the broker minimum must fail the preview (never silently bumped)."""
+    rules = capctl("market", "get", EPIC).get("dealingRules", {})
+    min_size = float(rules["minDealSize"]["value"])
+    below = round(min_size * 0.5, 8)
+    data = capctl("trade", "preview-position", EPIC, "BUY", str(below))
+    assert data.get("all_checks_passed") is False, data
+    size_checks = [c for c in data.get("checks", []) if c.get("check") == "size"]
+    assert size_checks and size_checks[0]["passed"] is False, data
+
+
+def test_26_preview_misaligned_size_requires_opt_in():
+    """A size off the broker increment fails by default and passes with --auto-normalize-size."""
+    rules = capctl("market", "get", EPIC).get("dealingRules", {})
+    min_size = float(rules["minDealSize"]["value"])
+    inc = float(rules["minSizeIncrement"]["value"])
+    misaligned = round(min_size + inc * 0.5, 8)  # in range, but off the increment grid
+
+    without = capctl("trade", "preview-position", EPIC, "BUY", str(misaligned))
+    size_checks = [c for c in without.get("checks", []) if c.get("check") == "size"]
+    assert size_checks and size_checks[0]["passed"] is False, without
+    assert "--auto-normalize-size" in size_checks[0]["message"], without
+
+    with_optin = capctl(
+        "trade", "preview-position", EPIC, "BUY", str(misaligned), "--auto-normalize-size"
+    )
+    size_checks2 = [c for c in with_optin.get("checks", []) if c.get("check") == "size"]
+    assert size_checks2 and size_checks2[0]["passed"] is True, with_optin
+
+
+def test_27_logout():
     capctl("session", "logout")
