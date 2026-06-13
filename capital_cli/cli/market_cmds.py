@@ -82,7 +82,9 @@ def nav_root(ctx: typer.Context) -> None:
 
 @app.command("nav-node")
 def nav_node(
-    ctx: typer.Context, node_id: str = typer.Argument(..., help="Navigation node ID.")
+    ctx: typer.Context,
+    node_id: str = typer.Argument(..., help="Navigation node ID."),
+    limit: int | None = typer.Option(None, "--limit", help="Max child nodes/markets (<=500)."),
 ) -> None:
     """Get child nodes/markets under a navigation node."""
     out = ctx.obj.out
@@ -91,7 +93,10 @@ def nav_node(
 
     async def _do() -> dict[str, Any]:
         await sm.ensure_logged_in()
-        return (await client.get(f"/marketnavigation/{node_id}")).json()
+        params: dict[str, Any] = {}
+        if limit is not None:
+            params["limit"] = limit
+        return (await client.get(f"/marketnavigation/{node_id}", params=params)).json()
 
     out.raw(run(out, _do, label="market nav-node"))
 
@@ -129,15 +134,32 @@ def prices(
 @app.command()
 def sentiment(
     ctx: typer.Context,
-    market_id: str = typer.Argument(..., help="Market ID (usually the EPIC)."),
+    market_ids: str = typer.Argument(
+        ..., help="Market ID, or comma-separated IDs for a batch (e.g. 'GOLD,SILVER')."
+    ),
 ) -> None:
-    """Get client sentiment (long vs short %)."""
+    """Get client sentiment (long vs short %) for one or several markets."""
     out = ctx.obj.out
     sm = get_session_manager()
     client = get_client()
+    ids = [m.strip() for m in market_ids.split(",") if m.strip()]
+    if not ids:
+        raise typer.BadParameter("Provide at least one market ID.")
 
     async def _do() -> dict[str, Any]:
         await sm.ensure_logged_in()
-        return (await client.get(f"/clientsentiment/{market_id}")).json()
+        if len(ids) == 1:
+            return (await client.get(f"/clientsentiment/{ids[0]}")).json()
+        return (await client.get("/clientsentiment", params={"marketIds": ",".join(ids)})).json()
 
-    out.record(run(out, _do, label="market sentiment"), title=f"Sentiment: {market_id}")
+    data = run(out, _do, label="market sentiment")
+    if out.json_mode:
+        out.raw(data)
+    elif len(ids) == 1:
+        out.record(data, title=f"Sentiment: {ids[0]}")
+    else:
+        out.rows(
+            data.get("clientSentiments", []),
+            ["marketId", "longPositionPercentage", "shortPositionPercentage"],
+            title="Client sentiment",
+        )
