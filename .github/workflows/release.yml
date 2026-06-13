@@ -31,6 +31,7 @@ jobs:
     needs: build-and-release
     permissions:
       id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
