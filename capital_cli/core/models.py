@@ -290,6 +290,20 @@ class PriceTick(BaseModel):
     change_percent: float | None = Field(default=None, description="Price change percentage")
 
 
+class OHLCBar(BaseModel):
+    """WebSocket OHLC candlestick update."""
+
+    epic: str = Field(..., description="Market EPIC")
+    resolution: str = Field(..., description="Candle resolution, e.g. MINUTE, HOUR, DAY")
+    type: str = Field(default="classic", description="Bar type: classic or heikin-ashi")
+    price_type: str = Field(default="bid", description="Price type the bar is built from")
+    timestamp: str = Field(..., description="Candle timestamp (ISO 8601)")
+    open: float = Field(..., description="Open price")
+    high: float = Field(..., description="High price")
+    low: float = Field(..., description="Low price")
+    close: float = Field(..., description="Close price")
+
+
 class StreamAlert(BaseModel):
     """Alert trigger event."""
 
