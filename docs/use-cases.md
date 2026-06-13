@@ -29,6 +29,9 @@ capctl trade preview-position GOLD BUY 0.5 --stop-distance 15 --profit-distance 
 capctl trade execute-position <preview_id> --yes
 capctl trade positions
 
+# Move your stop to lock in profit, or widen your target — without re-opening:
+capctl trade amend-position <dealId> --stop-level <new_stop> --profit-level <new_target> --yes
+
 # Close when done:
 capctl trade close <dealId> --yes
 ```
