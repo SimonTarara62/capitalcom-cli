@@ -47,6 +47,10 @@ def test_misaligned_size_rounds_only_with_opt_in():
 
 
 def test_auto_normalize_still_fails_if_rounding_crosses_minimum():
-    effective, check = _validate(0.004, min_size=0.01, increment=0.01, auto=True)
+    # 0.0124 is >= the 0.012 minimum, but rounding to the 0.01 increment gives
+    # 0.01, which is below the minimum -> must fail even with the opt-in, and the
+    # size must be returned unchanged.
+    effective, check = _validate(0.0124, min_size=0.012, max_size=100.0, increment=0.01, auto=True)
     assert check.passed is False
-    assert effective == 0.004
+    assert effective == 0.0124
+    assert "0.01" in check.message  # mentions the out-of-range rounded value
