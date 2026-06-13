@@ -7,6 +7,7 @@ Browse markets, manage accounts and watchlists, preview and execute trades behin
 [![CI](https://github.com/SimonTarara62/capitalcom-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/SimonTarara62/capitalcom-cli/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Release](https://img.shields.io/github/v/release/SimonTarara62/capitalcom-cli?sort=semver)](https://github.com/SimonTarara62/capitalcom-cli/releases)
 
 ```text
 $ capctl market search "gold"
