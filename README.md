@@ -339,4 +339,9 @@ Tests mock the HTTP and WebSocket layers — no network or credentials needed.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Licensed under the Apache License, Version 2.0. You may obtain a copy at
+<http://www.apache.org/licenses/LICENSE-2.0>. Unless required by applicable law
+or agreed to in writing, software distributed under the License is distributed
+on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND.
