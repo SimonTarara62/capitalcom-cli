@@ -28,9 +28,14 @@ class SessionManager:
     def __init__(self):
         self.config = get_config()
         self.client = get_client()
+        self.client.set_relogin(self._force_relogin)
         self.tokens: SessionTokens | None = None
         self.account_id: str | None = None
         self._login_lock = asyncio.Lock()
+
+    async def _force_relogin(self) -> None:
+        """Re-login callback used by the HTTP client on auth expiry."""
+        await self.login(force=True)
 
     async def login(
         self, *, force: bool = False, account_id: str | None = None
