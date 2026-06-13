@@ -371,6 +371,8 @@ CAPCTL_E2E=1 pytest tests/e2e -m e2e -v
 
 Tests mock the HTTP and WebSocket layers — no network or credentials needed.
 
+Or use the task runner: `make check` (lint + typecheck + test), `make docs`, `make e2e`.
+
 ## Documentation
 
 - [Full CLI reference](docs/CLI.md) — every command and option (auto-generated)
