@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed (safety — behavior change)
+- Trade preview no longer silently adjusts the requested size. A size below the
+  broker minimum or above the broker maximum now **fails** the preview instead of
+  being clamped to the boundary, and a size that isn't a multiple of the broker
+  increment fails unless you pass the new `trade preview-position`/`preview-order`
+  flag `--auto-normalize-size`. Execution always uses the exact requested size (or
+  the explicitly opted-in rounded size).
+- `account prefs-set` is now gated by a mutation guard (dry-run + explicit confirm)
+  instead of the trade-execution guard, so changing leverage/hedging no longer
+  requires `CAP_ALLOW_TRADING=true`.
+
+### Added
+- `--auto-normalize-size` opt-in flag on `trade preview-position` and `preview-order`.
+
+### Changed
+- HTTP client now sends a descriptive `User-Agent` and, on an auth-expiry (401/403)
+  during a safe GET, re-logs in and retries once before failing.
+- CI type-checks the whole `capital_cli` package.
+- Docs: added an API coverage table, clarified the CLI-vs-SDK scope and short-lived
+  session model, aligned install instructions, and expanded the security guidance.
+
 ## [0.2.0] - 2026-06-13
 
 ### Added
