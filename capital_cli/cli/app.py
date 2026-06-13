@@ -46,6 +46,12 @@ def main(
         None, "--account", "-a", help="Account ID to use for this invocation."
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging."),
+    no_color: bool = typer.Option(
+        False, "--no-color", help="Disable colored output (also honors NO_COLOR)."
+    ),
+    plain: bool = typer.Option(
+        False, "--plain", help="Tab-delimited rows for piping (no boxes/colors)."
+    ),
     version: bool | None = typer.Option(
         None,
         "--version",
@@ -64,6 +70,8 @@ def main(
         env=env,
         account=account,
         verbose=verbose,
+        no_color=no_color,
+        plain=plain,
     )
 
 

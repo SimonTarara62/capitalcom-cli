@@ -16,6 +16,8 @@ $ capctl [OPTIONS] COMMAND [ARGS]...
 * `--live`: Force the live environment.
 * `-a, --account TEXT`: Account ID to use for this invocation.
 * `-v, --verbose`: Enable debug logging.
+* `--no-color`: Disable colored output (also honors NO_COLOR).
+* `--plain`: Tab-delimited rows for piping (no boxes/colors).
 * `--version`: Show version and exit.
 * `--install-completion`: Install completion for the current shell.
 * `--show-completion`: Show completion for the current shell, to copy it or customize the installation.

@@ -90,7 +90,10 @@ class DryRunError(CapitalCLIError):
 
     def __init__(
         self,
-        message: str = "Dry-run mode is enabled. All trade executions are blocked.",
+        message: str = (
+            "Dry-run mode is enabled (CAP_DRY_RUN=true). "
+            "Set CAP_DRY_RUN=false to allow executions."
+        ),
     ):
         super().__init__(ErrorCode.DRY_RUN_ENABLED, message)
 
@@ -98,7 +101,10 @@ class DryRunError(CapitalCLIError):
 class ConfirmRequiredError(CapitalCLIError):
     """Explicit confirmation is required."""
 
-    def __init__(self, message: str = "Explicit confirmation required. Set confirm=true."):
+    def __init__(
+        self,
+        message: str = "Explicit confirmation required — pass --yes to proceed.",
+    ):
         super().__init__(ErrorCode.CONFIRM_REQUIRED, message)
 
 
@@ -106,7 +112,11 @@ class EpicNotAllowedError(CapitalCLIError):
     """Epic is not in the allowlist."""
 
     def __init__(self, epic: str, allowed: list[str]):
-        message = f"Epic '{epic}' is not in the allowlist. Allowed: {', '.join(allowed) if allowed else 'none'}"
+        allowed_str = ", ".join(allowed) if allowed else "none"
+        message = (
+            f"Epic '{epic}' is not in the allowlist (allowed: {allowed_str}). "
+            "Add it to CAP_ALLOWED_EPICS to trade it."
+        )
         super().__init__(
             ErrorCode.EPIC_NOT_ALLOWED,
             message,

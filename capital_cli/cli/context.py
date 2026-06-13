@@ -24,6 +24,8 @@ def init_state(
     env: str | None,
     account: str | None,
     verbose: bool,
+    no_color: bool = False,
+    plain: bool = False,
 ) -> AppState:
     """
     Apply global options to the environment, then build shared state.
@@ -40,4 +42,4 @@ def init_state(
     if verbose:
         os.environ["CAP_LOG_LEVEL"] = "DEBUG"
     reset_config()
-    return AppState(out=Output(json_mode=json_mode))
+    return AppState(out=Output(json_mode=json_mode, no_color=no_color or None, plain=plain))
