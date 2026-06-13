@@ -95,6 +95,8 @@ def history_activity(
     last_period: int = typer.Option(600, "--last", help="Last N seconds (max 86400)."),
     from_date: str | None = typer.Option(None, "--from", help="Start ISO 8601."),
     to_date: str | None = typer.Option(None, "--to", help="End ISO 8601."),
+    detailed: bool = typer.Option(False, "--detailed", help="Include full activity details."),
+    deal_id: str | None = typer.Option(None, "--deal-id", help="Filter to a single deal ID."),
 ) -> None:
     """Get account activity history."""
     out = ctx.obj.out
@@ -108,6 +110,10 @@ def history_activity(
             params["from"] = from_date
         if to_date:
             params["to"] = to_date
+        if detailed:
+            params["detailed"] = "true"
+        if deal_id:
+            params["dealId"] = deal_id
         return (await client.get("/history/activity", params=params)).json()
 
     out.raw(run(out, _do, label="account history-activity"))

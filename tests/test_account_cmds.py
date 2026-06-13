@@ -58,3 +58,16 @@ def test_demo_topup_with_yes(runner, mock_account):
     assert result.exit_code == 0
     assert mock_account.post.await_args.args[0] == "/accounts/topUp"
     assert mock_account.post.await_args.kwargs["json"] == {"amount": 500.0}
+
+
+def test_history_activity_detailed(runner, mock_account):
+    mock_account.get.return_value.json.return_value = {"activities": []}
+    result = runner.invoke(
+        app,
+        ["--json", "account", "history-activity", "--last", "3600", "--detailed", "--deal-id", "D9"],
+    )
+    assert result.exit_code == 0
+    params = mock_account.get.await_args.kwargs["params"]
+    assert params["detailed"] == "true"
+    assert params["dealId"] == "D9"
+    assert params["lastPeriod"] == 3600
