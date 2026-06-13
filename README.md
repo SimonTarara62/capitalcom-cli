@@ -360,7 +360,7 @@ The `cli/` layer never talks to the API directly — every command parses argume
 pip install -e ".[dev]"
 pytest -q              # full test suite
 ruff check .           # lint
-mypy capital_cli/cli   # type-check the CLI layer
+mypy capital_cli       # type-check the whole package (matches CI)
 ```
 
 An opt-in end-to-end suite runs against the real demo API (credentials required):
