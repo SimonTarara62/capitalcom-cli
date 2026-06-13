@@ -326,3 +326,21 @@ def test_26_preview_misaligned_size_requires_opt_in():
 
 def test_27_logout():
     capctl("session", "logout")
+
+
+def test_demo_shows_no_live_banner():
+    """Running a read-only command against the demo account must not print a LIVE banner."""
+    env = dict(
+        os.environ,
+        CAP_ENV_FILE=str(ENV_FILE),
+        CAPCTL_STATE_FILE=str(STATE_FILE),
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "capital_cli", "--json", "session", "time"],
+        capture_output=True,
+        text=True,
+        timeout=180,
+        env=env,
+        cwd=REPO,
+    )
+    assert "LIVE ACCOUNT" not in proc.stderr
