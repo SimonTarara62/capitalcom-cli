@@ -35,6 +35,24 @@ def _price_table(latest: dict[str, Any]) -> Table:
     return table
 
 
+def _candle_table(latest: dict[str, Any]) -> Table:
+    table = Table(title="Live candles (Ctrl-C to stop)", header_style="bold cyan")
+    for col in ["epic", "resolution", "open", "high", "low", "close", "timestamp"]:
+        table.add_column(col)
+    for key in sorted(latest):
+        b = latest[key]
+        table.add_row(
+            b["epic"],
+            b["resolution"],
+            str(b["open"]),
+            str(b["high"]),
+            str(b["low"]),
+            str(b["close"]),
+            b["timestamp"],
+        )
+    return table
+
+
 @app.command()
 def prices(
     ctx: typer.Context,
@@ -179,3 +197,67 @@ def portfolio(
         return {"positions": len(epics), "snapshots": snapshots[-50:]}
 
     out.raw(run(out, _do, label="stream portfolio"))
+
+
+@app.command()
+def candles(
+    ctx: typer.Context,
+    epics: str = typer.Argument(..., help="Comma-separated EPICs (max 40)."),
+    resolution: str = typer.Option(
+        "MINUTE", "--resolution", help="MINUTE, MINUTE_5, MINUTE_15, MINUTE_30, HOUR, HOUR_4, DAY, WEEK."
+    ),
+    bar_type: str = typer.Option("classic", "--type", help="classic or heikin-ashi."),
+    duration: float = typer.Option(300.0, "--duration", help="Stream duration in seconds."),
+    interval: float = typer.Option(
+        0.0, "--interval", help="Min seconds between recorded bars (0 = every update)."
+    ),
+) -> None:
+    """Stream live OHLC candlesticks."""
+    out = ctx.obj.out
+    parsed = _parse_epics(epics)
+    if bar_type not in ("classic", "heikin-ashi"):
+        raise typer.BadParameter("--type must be classic or heikin-ashi.")
+    sm = get_session_manager()
+
+    async def _do() -> dict[str, Any]:
+        await sm.ensure_logged_in()
+        collected: list[dict[str, Any]] = []
+        latest: dict[str, Any] = {}
+        last_emit = datetime.now(timezone.utc)
+        ws = get_websocket_client()
+        live = (
+            None
+            if out.json_mode
+            else Live(_candle_table(latest), console=out.console, refresh_per_second=4)
+        )
+        if live:
+            live.__enter__()
+        try:
+            async with ws:
+                await ws.subscribe_ohlc(parsed, [resolution], bar_type)
+                async for bar in ws.stream_ohlc(duration=duration):
+                    row = bar.model_dump()
+                    latest[f"{row['epic']}:{row['resolution']}"] = row
+                    now = datetime.now(timezone.utc)
+                    if (now - last_emit).total_seconds() >= interval:
+                        collected.append(row)
+                        last_emit = now
+                    if live:
+                        live.update(_candle_table(latest))
+        finally:
+            if live:
+                live.__exit__(None, None, None)
+        return {
+            "epics": parsed,
+            "resolution": resolution,
+            "type": bar_type,
+            "duration_s": duration,
+            "bars_received": len(collected),
+            "bars": collected[-100:],
+        }
+
+    data = run(out, _do, label="stream candles")
+    if out.json_mode:
+        out.raw(data)
+    else:
+        out.note(f"Collected {data['bars_received']} candles over {data['duration_s']}s.")
