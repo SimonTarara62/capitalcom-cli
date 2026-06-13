@@ -238,5 +238,28 @@ def test_22_sentiment_batch():
     assert len(sents) >= 1
 
 
-def test_23_logout():
+def test_23_stream_candles():
+    """20-second live OHLC stream; the forming BTCUSD candle updates frequently."""
+    data = capctl(
+        "stream", "candles", EPIC, "--resolution", "MINUTE", "--duration", "20", "--interval", "0"
+    )
+    assert data.get("bars_received", 0) >= 1, data
+    assert data.get("bars"), data
+    assert data["bars"][0]["resolution"] == "MINUTE"
+
+
+def test_24_leverage_roundtrip():
+    """Read the current CRYPTOCURRENCIES leverage and re-set it to the same value."""
+    prefs = capctl("account", "prefs-get")
+    lev = (prefs.get("leverages") or {}).get("CRYPTOCURRENCIES")
+    current = lev.get("current") if isinstance(lev, dict) else lev
+    assert current is not None, prefs
+    capctl("account", "prefs-set", "--leverage", f"CRYPTOCURRENCIES={int(current)}", "--yes")
+    after = capctl("account", "prefs-get")
+    lev2 = (after.get("leverages") or {}).get("CRYPTOCURRENCIES")
+    current2 = lev2.get("current") if isinstance(lev2, dict) else lev2
+    assert int(current2) == int(current), after
+
+
+def test_25_logout():
     capctl("session", "logout")
