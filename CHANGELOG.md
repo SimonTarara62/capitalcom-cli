@@ -6,6 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-13
+
+### Added
+- `AGENTS.md` (single source of truth for AI agents) and a `CLAUDE.md` import stub.
+- Auto-generated `docs/CLI.md` command reference, gated in CI.
+- `Makefile` task runner (`test`/`lint`/`fmt`/`typecheck`/`docs`/`e2e`/`check`).
+- `--no-color` global flag; honors `NO_COLOR` / `CAPCTL_NO_COLOR` / `TERM=dumb`.
+- `--plain` tab-delimited output mode for piping.
+- Loud LIVE-account banner before mutating trade commands.
+- Shell-completion docs, `docs/scripting.md`, and a PyPI trusted-publishing job.
+
+### Changed
+- Package version is now single-sourced from `capital_cli.__version__`.
+- Clearer remediation hints on confirm-required, dry-run, and epic-not-allowed errors.
+
 ## [0.3.0] - 2026-06-13
 
 ### Changed (safety — behavior change)
@@ -58,7 +73,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Persistent state for trade previews and the daily order counter.
 - Documentation: getting-started, use cases, troubleshooting, contributing.
 
-[Unreleased]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/SimonTarara62/capitalcom-cli/releases/tag/v0.1.0
