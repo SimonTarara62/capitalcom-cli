@@ -9,9 +9,9 @@ Requirements:
 - CAP_ALLOW_TRADING=true with BTCUSD allowed (or ALL)
 - CAP_WS_ENABLED=true for the streaming test
 
-Side effects on the DEMO account: creates and deletes one watchlist, opens
-and closes one minimum-size BTCUSD position. Tests are order-dependent
-(numbered) and share state via the module-level _ctx dict.
+Side effects on the DEMO account: creates and deletes one watchlist, and
+opens, amends, and closes one minimum-size BTCUSD position. Tests are
+order-dependent (numbered) and share state via the module-level _ctx dict.
 """
 
 import json
@@ -171,29 +171,72 @@ def test_12_position_visible():
     assert _ctx["deal_id"] in ids, ids
 
 
-def test_13_close_position():
+def test_13_amend_position():
+    """Amend the open position's stop/limit to safe far-from-market levels."""
+    pos = capctl("trade", "position", _ctx["deal_id"])
+    level = float(pos["position"]["level"])  # current/open price
+    stop = round(level * 0.5, 1)             # far below — won't trigger
+    profit = round(level * 1.5, 1)           # far above — won't trigger
+    data = capctl(
+        "trade", "amend-position", _ctx["deal_id"],
+        "--stop-level", str(stop),
+        "--profit-level", str(profit),
+        "--yes", "--timeout", "30",
+    )
+    conf = data.get("confirmation") or {}
+    assert conf.get("status") == "ACCEPTED", conf
+
+
+def test_14_close_position():
     data = capctl("trade", "close", _ctx["deal_id"], "--yes", "--timeout", "30")
     conf = data.get("confirmation") or {}
     assert conf.get("status") == "ACCEPTED", conf
 
 
-def test_14_position_gone():
+def test_15_position_gone():
     data = capctl("trade", "positions")
     ids = [p.get("position", {}).get("dealId") for p in data.get("positions", [])]
     assert _ctx["deal_id"] not in ids, ids
 
 
-def test_15_stream_prices():
+def test_16_stream_prices():
     """15-second live stream; BTCUSD ticks frequently enough to collect >=1."""
     data = capctl("stream", "prices", EPIC, "--duration", "15", "--interval", "1")
     assert data.get("ticks_received", 0) >= 1, data
     assert data.get("ticks"), data
 
 
-def test_16_history_activity():
+def test_17_history_activity():
     data = capctl("account", "history-activity", "--last", "3600")
     assert "activities" in data, data
 
 
-def test_17_logout():
+def test_18_history_activity_detailed():
+    data = capctl("account", "history-activity", "--last", "3600", "--detailed")
+    assert "activities" in data, data
+
+
+def test_19_session_details():
+    data = capctl("session", "details")
+    assert data.get("clientId") or data.get("accountId"), data
+
+
+def test_20_session_time():
+    data = capctl("session", "time")
+    assert data, data  # non-empty dict (serverTime or wrapped value)
+
+
+def test_21_session_encryption_key():
+    data = capctl("session", "encryption-key")
+    assert data.get("encryptionKey"), data
+
+
+def test_22_sentiment_batch():
+    data = capctl("market", "sentiment", "BTCUSD,ETHUSD")
+    sents = data.get("clientSentiments")
+    assert sents, data
+    assert len(sents) >= 1
+
+
+def test_23_logout():
     capctl("session", "logout")

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import typer
 
 from capital_cli.cli.runner import run
+from capital_cli.core.http_client import get_client
 from capital_cli.core.session import get_session_manager
 
 app = typer.Typer(no_args_is_help=True, help="Session lifecycle: login, ping, logout.")
@@ -83,3 +86,42 @@ def switch(
         return data
 
     out.record(run(out, _do, label="session switch"), title="Switch account")
+
+
+@app.command()
+def time(ctx: typer.Context) -> None:
+    """Show the broker's current server time (no authentication required)."""
+    out = ctx.obj.out
+    client = get_client()
+
+    async def _do() -> dict[str, Any]:
+        data = (await client.get("/time")).json()
+        return data if isinstance(data, dict) else {"serverTime": data}
+
+    out.record(run(out, _do, label="session time"), title="Server time")
+
+
+@app.command()
+def details(ctx: typer.Context) -> None:
+    """Show server-side session details (client id, account id, currency, timezone)."""
+    out = ctx.obj.out
+    sm = get_session_manager()
+    client = get_client()
+
+    async def _do() -> dict[str, Any]:
+        await sm.ensure_logged_in()
+        return (await client.get("/session")).json()
+
+    out.record(run(out, _do, label="session details"), title="Session details")
+
+
+@app.command("encryption-key")
+def encryption_key(ctx: typer.Context) -> None:
+    """Fetch the API encryption key and timestamp (used for encrypted-password login)."""
+    out = ctx.obj.out
+    client = get_client()
+
+    async def _do() -> dict[str, Any]:
+        return (await client.get("/session/encryptionKey")).json()
+
+    out.record(run(out, _do, label="session encryption-key"), title="Encryption key")

@@ -143,6 +143,9 @@ These go **before** the command group:
 
 ```bash
 capctl session status            # local session state (no network call)
+capctl session details           # server-side session info (client/account ids, timezone)
+capctl session time              # broker server time (no auth)
+capctl session encryption-key    # API encryption key for encrypted-password login
 capctl session login [--force] [--account ID]
 capctl session ping              # keep the session alive
 capctl session switch ACCOUNT_ID
@@ -161,6 +164,8 @@ capctl market nav-root                          # top-level categories
 capctl market nav-node NODE_ID                  # drill into a category
 capctl market prices GOLD --resolution HOUR --max 48
 capctl market sentiment GOLD                    # client long/short %
+capctl market sentiment GOLD,SILVER,BTCUSD      # batch sentiment for several markets
+capctl market nav-node NODE_ID --limit 50       # cap the number of children returned
 ```
 
 Price resolutions: `MINUTE`, `MINUTE_5`, `MINUTE_15`, `MINUTE_30`, `HOUR`, `HOUR_4`, `DAY`, `WEEK`.
@@ -208,6 +213,13 @@ Closing and cancelling:
 ```bash
 capctl trade close DEAL_ID --yes
 capctl trade cancel DEAL_ID --yes
+```
+
+Amending an open position or a pending order (stops, limits, level, expiry):
+
+```bash
+capctl trade amend-position DEAL_ID --stop-level 2300 --profit-level 2450 --yes
+capctl trade amend-order DEAL_ID --level 2310 --good-till 2026-08-01T00:00:00 --yes
 ```
 
 Previews expire after 120 seconds. Execution commands wait for broker confirmation by default (`--no-wait` to skip; `--timeout` to tune).

@@ -428,3 +428,107 @@ def cancel(
         return data
 
     out.record(run(out, _do, label="trade cancel"), title="Cancel order")
+
+
+@app.command("amend-position")
+def amend_position(
+    ctx: typer.Context,
+    deal_id: str = typer.Argument(..., help="Deal ID of the open position to amend."),
+    stop_level: float | None = typer.Option(None, "--stop-level"),
+    stop_distance: float | None = typer.Option(None, "--stop-distance"),
+    profit_level: float | None = typer.Option(None, "--profit-level"),
+    profit_distance: float | None = typer.Option(None, "--profit-distance"),
+    guaranteed_stop: bool | None = typer.Option(
+        None, "--guaranteed-stop/--no-guaranteed-stop", help="Toggle guaranteed stop."
+    ),
+    trailing_stop: bool | None = typer.Option(
+        None, "--trailing-stop/--no-trailing-stop", help="Toggle trailing stop."
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Confirm the amendment."),
+    wait: bool = typer.Option(True, "--wait/--no-wait", help="Wait for broker confirmation."),
+    timeout: float = typer.Option(15.0, "--timeout"),
+) -> None:
+    """Amend the stop-loss / take-profit on an open position (SIDE EFFECT)."""
+    out = ctx.obj.out
+    body: dict[str, Any] = {}
+    for value, key in [
+        (stop_level, "stopLevel"),
+        (stop_distance, "stopDistance"),
+        (profit_level, "profitLevel"),
+        (profit_distance, "profitDistance"),
+    ]:
+        if value is not None:
+            body[key] = value
+    if guaranteed_stop is not None:
+        body["guaranteedStop"] = guaranteed_stop
+    if trailing_stop is not None:
+        body["trailingStop"] = trailing_stop
+    if not body:
+        raise typer.BadParameter("Provide at least one stop/profit option to amend.")
+
+    sm = get_session_manager()
+    client = get_client()
+    risk = get_risk_engine()
+
+    async def _do() -> dict[str, Any]:
+        await sm.ensure_logged_in()
+        risk.validate_execution_guards(confirm=yes)
+        data = (await client.put(f"/positions/{deal_id}", json=body)).json()
+        if wait and "dealReference" in data:
+            data["confirmation"] = await _wait_for_confirmation(
+                data["dealReference"], timeout_s=timeout
+            )
+        data["active_account_id"] = sm.account_id
+        return data
+
+    out.record(run(out, _do, label="trade amend-position"), title="Amend position")
+
+
+@app.command("amend-order")
+def amend_order(
+    ctx: typer.Context,
+    deal_id: str = typer.Argument(..., help="Deal ID of the working order to amend."),
+    level: float | None = typer.Option(None, "--level", help="New trigger level."),
+    good_till_date: str | None = typer.Option(None, "--good-till", help="New expiry ISO 8601."),
+    stop_level: float | None = typer.Option(None, "--stop-level"),
+    stop_distance: float | None = typer.Option(None, "--stop-distance"),
+    profit_level: float | None = typer.Option(None, "--profit-level"),
+    profit_distance: float | None = typer.Option(None, "--profit-distance"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Confirm the amendment."),
+    wait: bool = typer.Option(True, "--wait/--no-wait", help="Wait for broker confirmation."),
+    timeout: float = typer.Option(15.0, "--timeout"),
+) -> None:
+    """Amend a working order's level, expiry, or stops/limits (SIDE EFFECT)."""
+    out = ctx.obj.out
+    body: dict[str, Any] = {}
+    if level is not None:
+        body["level"] = level
+    if good_till_date is not None:
+        body["goodTillDate"] = good_till_date
+    for value, key in [
+        (stop_level, "stopLevel"),
+        (stop_distance, "stopDistance"),
+        (profit_level, "profitLevel"),
+        (profit_distance, "profitDistance"),
+    ]:
+        if value is not None:
+            body[key] = value
+    if not body:
+        raise typer.BadParameter("Provide at least one field to amend (level, good-till, stop/profit).")
+
+    sm = get_session_manager()
+    client = get_client()
+    risk = get_risk_engine()
+
+    async def _do() -> dict[str, Any]:
+        await sm.ensure_logged_in()
+        risk.validate_execution_guards(confirm=yes)
+        data = (await client.put(f"/workingorders/{deal_id}", json=body)).json()
+        if wait and "dealReference" in data:
+            data["confirmation"] = await _wait_for_confirmation(
+                data["dealReference"], timeout_s=timeout
+            )
+        data["active_account_id"] = sm.account_id
+        return data
+
+    out.record(run(out, _do, label="trade amend-order"), title="Amend order")

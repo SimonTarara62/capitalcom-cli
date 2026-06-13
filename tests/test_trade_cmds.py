@@ -36,6 +36,7 @@ def mock_trade(monkeypatch):
     client.get = AsyncMock(return_value=resp)
     client.post = AsyncMock(return_value=resp)
     client.delete = AsyncMock(return_value=resp)
+    client.put = AsyncMock(return_value=resp)
     monkeypatch.setattr("capital_cli.cli.trade_cmds.get_client", lambda: client)
 
     # Risk engine: a passing preview.
@@ -197,3 +198,55 @@ async def test_wait_for_confirmation_timeout(monkeypatch):
 
     assert result["status"] == "TIMEOUT"
     assert "message" in result
+
+
+def test_amend_position_blocked_without_yes(runner, mock_trade, monkeypatch):
+    risk = _arm_execution(monkeypatch)
+    from capital_cli.core.errors import ConfirmRequiredError
+
+    def guard(confirm, preview_id=None):
+        if not confirm:
+            raise ConfirmRequiredError()
+
+    risk.validate_execution_guards = MagicMock(side_effect=guard)
+    result = runner.invoke(app, ["trade", "amend-position", "D1", "--stop-level", "100"])
+    assert result.exit_code == 4
+    mock_trade.put.assert_not_awaited()
+
+
+def test_amend_position_no_fields_is_usage_error(runner, mock_trade, monkeypatch):
+    _arm_execution(monkeypatch)
+    result = runner.invoke(app, ["trade", "amend-position", "D1", "--yes"])
+    assert result.exit_code == 2  # nothing to amend -> BadParameter
+    mock_trade.put.assert_not_awaited()
+
+
+def test_amend_position_with_yes(runner, mock_trade, monkeypatch):
+    _arm_execution(monkeypatch)
+    mock_trade.put.return_value.json.return_value = {"dealReference": "o_a"}
+    result = runner.invoke(
+        app,
+        ["trade", "amend-position", "D1", "--stop-level", "100", "--profit-level", "200", "--yes", "--no-wait"],
+    )
+    assert result.exit_code == 0
+    assert mock_trade.put.await_args.args[0] == "/positions/D1"
+    assert mock_trade.put.await_args.kwargs["json"] == {"stopLevel": 100.0, "profitLevel": 200.0}
+
+
+def test_amend_order_with_yes(runner, mock_trade, monkeypatch):
+    _arm_execution(monkeypatch)
+    mock_trade.put.return_value.json.return_value = {"dealReference": "o_b"}
+    result = runner.invoke(
+        app,
+        ["trade", "amend-order", "D2", "--level", "2300", "--good-till", "2026-07-01T00:00:00", "--yes", "--no-wait"],
+    )
+    assert result.exit_code == 0
+    assert mock_trade.put.await_args.args[0] == "/workingorders/D2"
+    assert mock_trade.put.await_args.kwargs["json"] == {"level": 2300.0, "goodTillDate": "2026-07-01T00:00:00"}
+
+
+def test_amend_order_no_fields_is_usage_error(runner, mock_trade, monkeypatch):
+    _arm_execution(monkeypatch)
+    result = runner.invoke(app, ["trade", "amend-order", "D2", "--yes"])
+    assert result.exit_code == 2
+    mock_trade.put.assert_not_awaited()
