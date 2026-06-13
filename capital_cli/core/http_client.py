@@ -5,6 +5,8 @@ from typing import Any
 
 import httpx
 
+from capital_cli import __version__
+
 from .config import get_config
 from .errors import SessionError, UpstreamError, redact_secrets
 from .models import SessionTokens
@@ -31,6 +33,10 @@ class CapitalClient:
                 headers={
                     "Content-Type": "application/json",
                     "Accept": "application/json",
+                    "User-Agent": (
+                        f"capitalcom-cli/{__version__} "
+                        "(+https://github.com/SimonTarara62/capitalcom-cli)"
+                    ),
                 },
             )
         return self._client
