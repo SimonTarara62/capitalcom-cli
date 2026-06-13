@@ -117,3 +117,9 @@ class Output:
     def success(self, message: str) -> None:
         if not self.json_mode:
             self.err.print(f"[green]✓[/] {message}")
+
+    def banner_live(self) -> None:
+        """Loud stderr banner before a live (real-money) action."""
+        # Intentionally not gated on json_mode: stdout stays pure (stderr only),
+        # and this real-money safety signal must always surface.
+        self.err.print("[bold white on red] ⚠  LIVE ACCOUNT — real money  [/]")

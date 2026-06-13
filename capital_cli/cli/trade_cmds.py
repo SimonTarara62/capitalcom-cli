@@ -6,6 +6,7 @@ from typing import Any
 
 import typer
 
+from capital_cli.cli.live_guard import warn_if_live
 from capital_cli.cli.runner import run
 from capital_cli.core.http_client import get_client
 from capital_cli.core.models import (
@@ -333,6 +334,7 @@ def execute_position(
     risk = get_risk_engine()
 
     async def _do() -> dict[str, Any]:
+        warn_if_live(out)
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes, preview_id=preview_id)
         normalized = risk.get_preview(preview_id).normalized_request
@@ -366,6 +368,7 @@ def execute_order(
     risk = get_risk_engine()
 
     async def _do() -> dict[str, Any]:
+        warn_if_live(out)
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes, preview_id=preview_id)
         normalized = risk.get_preview(preview_id).normalized_request
@@ -397,6 +400,7 @@ def close(
     risk = get_risk_engine()
 
     async def _do() -> dict[str, Any]:
+        warn_if_live(out)
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes)
         data = (await client.delete(f"/positions/{deal_id}")).json()
@@ -425,6 +429,7 @@ def cancel(
     risk = get_risk_engine()
 
     async def _do() -> dict[str, Any]:
+        warn_if_live(out)
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes)
         data = (await client.delete(f"/workingorders/{deal_id}")).json()
@@ -479,6 +484,7 @@ def amend_position(
     risk = get_risk_engine()
 
     async def _do() -> dict[str, Any]:
+        warn_if_live(out)
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes)
         data = (await client.put(f"/positions/{deal_id}", json=body)).json()
@@ -529,6 +535,7 @@ def amend_order(
     risk = get_risk_engine()
 
     async def _do() -> dict[str, Any]:
+        warn_if_live(out)
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes)
         data = (await client.put(f"/workingorders/{deal_id}", json=body)).json()
