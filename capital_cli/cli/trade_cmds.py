@@ -99,7 +99,13 @@ def _preview_payload(preview: Any) -> dict[str, Any]:
 # ----- Read-only -----
 
 
-@app.command()
+@app.command(
+    epilog=(
+        "Examples:\n"
+        "  # List open positions as JSON and sum unrealised P&L with jq\n"
+        "  capctl --json trade positions | jq '[.positions[].position.upl] | add'"
+    )
+)
 def positions(ctx: typer.Context) -> None:
     """List open positions."""
     out = ctx.obj.out
@@ -205,7 +211,16 @@ def confirm(
 # ----- Preview (no side effects) -----
 
 
-@app.command("preview-position")
+@app.command(
+    "preview-position",
+    epilog=(
+        "Examples:\n"
+        "  # 1) Preview, capturing the preview_id\n"
+        "  PV=$(capctl --json trade preview-position GOLD BUY 1 | jq -r .preview_id)\n"
+        "  # 2) Execute that preview (requires --yes)\n"
+        '  capctl --json trade execute-position "$PV" --yes'
+    ),
+)
 def preview_position(
     ctx: typer.Context,
     epic: str = typer.Argument(..., help="Market EPIC."),
@@ -261,7 +276,16 @@ def preview_position(
         )
 
 
-@app.command("preview-order")
+@app.command(
+    "preview-order",
+    epilog=(
+        "Examples:\n"
+        "  # 1) Preview a LIMIT working order, capturing the preview_id\n"
+        "  PV=$(capctl --json trade preview-order GOLD BUY LIMIT 1900 1 | jq -r .preview_id)\n"
+        "  # 2) Execute that preview (requires --yes)\n"
+        '  capctl --json trade execute-order "$PV" --yes'
+    ),
+)
 def preview_order(
     ctx: typer.Context,
     epic: str = typer.Argument(..., help="Market EPIC."),
@@ -344,7 +368,15 @@ def _build_broker_request(
     return body
 
 
-@app.command("execute-position")
+@app.command(
+    "execute-position",
+    epilog=(
+        "Examples:\n"
+        "  # Execute a previewed position; a TIMEOUT confirmation is ambiguous —\n"
+        "  # reconcile with 'trade positions' before retrying.\n"
+        '  capctl --json trade execute-position "$PREVIEW_ID" --yes'
+    ),
+)
 def execute_position(
     ctx: typer.Context,
     preview_id: str = typer.Argument(..., help="Preview ID from preview-position."),
@@ -391,7 +423,14 @@ def execute_position(
     out.record(run(out, _do, label="trade execute-position"), title="Execute position")
 
 
-@app.command("execute-order")
+@app.command(
+    "execute-order",
+    epilog=(
+        "Examples:\n"
+        "  # Execute a previewed working order; reconcile via 'trade orders' on TIMEOUT.\n"
+        '  capctl --json trade execute-order "$PREVIEW_ID" --yes'
+    ),
+)
 def execute_order(
     ctx: typer.Context,
     preview_id: str = typer.Argument(..., help="Preview ID from preview-order."),
@@ -435,7 +474,13 @@ def execute_order(
     out.record(run(out, _do, label="trade execute-order"), title="Execute order")
 
 
-@app.command()
+@app.command(
+    epilog=(
+        "Examples:\n"
+        "  # Close a position by deal ID (requires --yes)\n"
+        "  capctl --json trade close DIAAAAA... --yes"
+    )
+)
 def close(
     ctx: typer.Context,
     deal_id: str = typer.Argument(..., help="Position deal ID to close."),

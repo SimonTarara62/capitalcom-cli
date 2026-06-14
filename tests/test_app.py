@@ -29,6 +29,18 @@ def test_help_lists_command_groups():
         assert group in result.stdout
 
 
+def test_preview_position_help_has_examples():
+    result = runner.invoke(app, ["trade", "preview-position", "--help"])
+    assert result.exit_code == 0
+    assert "Examples" in result.stdout
+
+
+def test_top_level_help_points_to_doctor():
+    result = runner.invoke(app, ["--help"])
+    assert result.exit_code == 0
+    assert "doctor" in result.stdout
+
+
 def test_demo_and_live_conflict():
     result = runner.invoke(app, ["--demo", "--live", "session", "status"])
     assert result.exit_code != 0

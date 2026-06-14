@@ -24,6 +24,11 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=True,
     help="capctl — command-line client for the Capital.com Open API.",
+    epilog=(
+        "Getting started:\n"
+        "  capctl doctor          # check env, credentials, and trading status\n"
+        "  capctl session login   # create a session and store auth tokens"
+    ),
     rich_markup_mode="rich",
     # Disable Typer's pretty-exceptions wrapper so Click UsageErrors propagate to
     # run_cli() (which renders them as structured JSON under --json). Otherwise
