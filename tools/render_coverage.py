@@ -63,10 +63,12 @@ def render() -> tuple[str, str]:
 
 def main() -> None:
     table_md, badge_json = render()
-    text = DOC.read_text()
+    # Pin UTF-8: the matrix uses non-ASCII chars (— and the − column headers);
+    # without this, Windows defaults to cp1252 and mangles them (drift mismatch).
+    text = DOC.read_text(encoding="utf-8")
     head = text.split(MARKER)[0].rstrip() + "\n\n"
-    DOC.write_text(head + table_md)
-    BADGE.write_text(badge_json)
+    DOC.write_text(head + table_md, encoding="utf-8")
+    BADGE.write_text(badge_json, encoding="utf-8")
     print(f"wrote {DOC} and {BADGE}")
 
 

@@ -11,7 +11,9 @@ REPO = Path(__file__).resolve().parents[1]
 
 def test_matrix_table_in_sync():
     table_md, _ = render()
-    committed = (REPO / "docs" / "api-coverage.md").read_text()
+    # UTF-8 explicit: the matrix uses non-ASCII (— / − headers); the default
+    # encoding is cp1252 on Windows, which would mangle them and fail the compare.
+    committed = (REPO / "docs" / "api-coverage.md").read_text(encoding="utf-8")
     assert MARKER in committed, "run: python tools/render_coverage.py"
     assert committed.split(MARKER, 1)[1].strip() == table_md.split(MARKER, 1)[1].strip(), (
         "docs/api-coverage.md is stale — run: python tools/render_coverage.py"
@@ -20,7 +22,7 @@ def test_matrix_table_in_sync():
 
 def test_badge_json_in_sync():
     _, badge_json = render()
-    committed = (REPO / "docs" / "coverage-badge.json").read_text()
+    committed = (REPO / "docs" / "coverage-badge.json").read_text(encoding="utf-8")
     assert json.loads(committed) == json.loads(badge_json), (
         "docs/coverage-badge.json is stale — run: python tools/render_coverage.py"
     )

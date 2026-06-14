@@ -72,7 +72,7 @@ def test_every_sdk_method_exists():
 
 
 def _func_names(path: Path) -> set[str]:
-    tree = ast.parse(path.read_text())
+    tree = ast.parse(path.read_text(encoding="utf-8"))
     return {
         n.name
         for n in ast.walk(tree)
