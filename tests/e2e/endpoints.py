@@ -26,10 +26,10 @@ class Endpoint:
 
 # --- The 41-row registry (mirror of docs/api-coverage.md row order) ----------
 ENDPOINTS: list[Endpoint] = [
-    Endpoint("session.time", "GET /time", "session time", None, "session", False),
+    Endpoint("session.time", "GET /time", "session time", "session.server_time", "session", False),
     Endpoint("session.ping", "GET /ping", "session ping", "session.ping", "session", False),
-    Endpoint("session.details", "GET /session", "session details", None, "session", False),
-    Endpoint("session.encryption_key", "GET /session/encryptionKey", "session encryption-key", None, "session", False),
+    Endpoint("session.details", "GET /session", "session details", "session.details", "session", False),
+    Endpoint("session.encryption_key", "GET /session/encryptionKey", "session encryption-key", "session.encryption_key", "session", False),
     Endpoint("session.login", "POST /session", "session login", "session.login", "session", True),
     Endpoint("session.switch", "PUT /session", "session switch", "session.switch_account", "session", True),
     Endpoint("session.logout", "DELETE /session", "session logout", "session.logout", "session", True),
@@ -235,6 +235,9 @@ COVERAGE["stream.portfolio"].cli_pos = f"{_G}::test_cli_stream_portfolio_runs"
 # --- sdk_pos wiring (Task 5): existing sdk-e2e + new gap tests -----------------
 _S = "tests/e2e/test_sdk_e2e.py"
 _P = "tests/e2e/test_sdk_positive_gaps_e2e.py"
+COVERAGE["session.time"].sdk_pos = f"{_P}::test_sdk_session_reads"
+COVERAGE["session.details"].sdk_pos = f"{_P}::test_sdk_session_reads"
+COVERAGE["session.encryption_key"].sdk_pos = f"{_P}::test_sdk_session_reads"
 COVERAGE["session.ping"].sdk_pos = f"{_P}::test_sdk_session_ping_switch_logout"
 COVERAGE["session.login"].sdk_pos = f"{_S}::test_sdk_read_only_flow"
 COVERAGE["session.switch"].sdk_pos = f"{_P}::test_sdk_session_ping_switch_logout"
@@ -297,6 +300,9 @@ COVERAGE["watchlist.remove"].sdk_neg = f"{_SN}::test_sdk_nontrade_mutations_requ
 COVERAGE["watchlist.delete"].sdk_neg = f"{_SN}::test_sdk_nontrade_mutations_require_confirm[watchlist.delete]"
 COVERAGE["account.prefs_set"].sdk_neg = f"{_SN}::test_sdk_nontrade_mutations_require_confirm[account.prefs_set]"
 COVERAGE["account.topup"].sdk_neg = f"{_SN}::test_sdk_nontrade_mutations_require_confirm[account.topup]"
+COVERAGE["session.time"].sdk_neg = f"{_SN}::test_sdk_missing_config_raises[session.time]"
+COVERAGE["session.details"].sdk_neg = f"{_SN}::test_sdk_missing_config_raises[session.details]"
+COVERAGE["session.encryption_key"].sdk_neg = f"{_SN}::test_sdk_missing_config_raises[session.encryption_key]"
 COVERAGE["session.ping"].sdk_neg = f"{_SN}::test_sdk_missing_config_raises[session.ping]"
 COVERAGE["session.switch"].sdk_neg = f"{_SN}::test_sdk_missing_config_raises[session.switch]"
 COVERAGE["session.logout"].sdk_neg = f"{_SN}::test_sdk_missing_config_raises[session.logout]"

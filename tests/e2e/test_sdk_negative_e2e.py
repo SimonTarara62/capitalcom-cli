@@ -174,7 +174,8 @@ def _missing_config_env():
 
 @pytest.mark.parametrize(
     "endpoint_id",
-    ["session.ping", "session.switch", "session.logout", "session.login",
+    ["session.time", "session.details", "session.encryption_key",
+     "session.ping", "session.switch", "session.logout", "session.login",
      "account.list", "account.prefs_get", "account.history_activity",
      "account.history_transactions", "market.search", "market.sentiment",
      "market.nav_root", "market.nav_node", "position.list", "order.list",

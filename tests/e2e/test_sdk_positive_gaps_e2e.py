@@ -20,6 +20,21 @@ requires_trading = pytest.mark.skipif(
 EPIC = "BTCUSD"
 
 
+def test_sdk_session_reads():
+    from capital_cli.sdk import CapitalComApp
+
+    async def _run():
+        async with CapitalComApp() as app:
+            t = await app.session.server_time()
+            assert isinstance(t, dict) and t, t
+            d = await app.session.details()
+            assert isinstance(d, dict) and d, d
+            k = await app.session.encryption_key()
+            assert isinstance(k, dict) and (k.get("encryptionKey") or k), k
+
+    asyncio.run(_run())
+
+
 def test_sdk_session_ping_switch_logout():
     from capital_cli.sdk import CapitalComApp
 
