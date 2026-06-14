@@ -98,9 +98,10 @@ def test_sdk_prefs_roundtrip_and_topup():
         async with CapitalComApp() as app:
             prefs = await app.accounts.get_preferences()
             lev = prefs.get("leverages", {})
-            asset, value = next(iter(lev.items())) if lev else ("CRYPTOCURRENCIES", 2)
+            asset, info = next(iter(lev.items())) if lev else ("CRYPTOCURRENCIES", {"current": 2})
+            current = info.get("current") if isinstance(info, dict) else info
             updated = await app.accounts.set_preferences(
-                leverages={asset: int(value)}, confirm=True
+                leverages={asset: int(current)}, confirm=True
             )
             assert isinstance(updated, dict)
             topped = await app.accounts.demo_topup(1.0, confirm=True)

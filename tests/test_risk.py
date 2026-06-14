@@ -232,3 +232,51 @@ def test_validate_size_guards_non_positive_increment():
     assert check.passed is True
     effective, check = engine._validate_size(1.0, 0.1, 1000.0, -1.0, auto_normalize=False)
     assert check.passed is True
+
+
+async def test_working_order_preview_persists_type_level_to_state_file(tmp_path):
+    """A passing working-order preview must persist type/level to the state file.
+
+    The CLI's `trade execute-order` runs in a separate process that loads the
+    preview from the state file. Regression for the `'type'` KeyError raised when
+    the working-order fields were only mutated in-memory and never re-saved.
+    """
+    from capital_cli.core.config import get_config
+    from capital_cli.core.models import Direction, PreviewWorkingOrderRequest, WorkingOrderType
+    from capital_cli.core.state import StateStore
+    from capital_cli.services.confirmations import build_broker_request
+
+    cfg = get_config()
+    cfg.cap_allow_trading = True
+    cfg.cap_allowed_epics = "ALL"
+    cfg.cap_max_position_size = 100.0
+    cfg.cap_max_working_order_size = 100.0
+    try:
+        engine = RiskEngine()
+        # Real temp-file-backed state store so save/load round-trips through JSON.
+        engine.state = StateStore(path=tmp_path / "state.json")
+        _arm_market_details(engine)
+        request = PreviewWorkingOrderRequest(
+            epic="GOLD",
+            direction=Direction.BUY,
+            type=WorkingOrderType.LIMIT,
+            level=1900.0,  # far from market (bid 2000 / offer 2001)
+            size=0.5,
+        )
+        result = await engine.preview_working_order(request)
+        assert result.all_checks_passed is True
+
+        # Simulate a fresh process: drop the in-memory cache so we load from disk.
+        engine._preview_cache.clear()
+        reloaded = engine.get_preview(result.preview_id)
+
+        assert reloaded.normalized_request.get("type") == "LIMIT"
+        assert "level" in reloaded.normalized_request
+
+        body = build_broker_request(reloaded.normalized_request, include_order_fields=True)
+        assert body["type"] == "LIMIT"
+    finally:
+        cfg.cap_allow_trading = False
+        cfg.cap_allowed_epics = ""
+        cfg.cap_max_position_size = 1.0
+        cfg.cap_max_working_order_size = 1.0
