@@ -23,6 +23,9 @@ Or point at a file with `--env-file /path/to/.env`.
   closed** (exit code 4) rather than hang — safe for CI.
 - Use `--json` for machine-readable output and `--plain` for tab-delimited rows.
 - Disable color with `--no-color` or `NO_COLOR=1`.
+- The global flags `--json`, `--plain`, and `--no-color` work in **any
+  position** — `capctl session status --json` is equivalent to
+  `capctl --json session status`.
 
 ## Exit codes
 

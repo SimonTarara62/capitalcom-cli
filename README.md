@@ -122,7 +122,7 @@ Credentials are resolved in this order:
 3. `./.env` in the current directory
 4. `~/.config/capital-cli/.env`
 
-All settings (one `CAP_*` variable each) and their defaults:
+Main settings and their defaults:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -146,6 +146,13 @@ All settings (one `CAP_*` variable each) and their defaults:
 | `CAP_LOG_LEVEL` | `WARNING` | `DEBUG` … `CRITICAL` |
 | `CAP_WS_ENABLED` | `false` | Required for `capctl stream …` |
 | `CAP_AUDIT_LOG` | (none) | File path; appends one JSONL line per executed mutation (no secrets) |
+
+Advanced/internal settings (rarely changed; safe defaults):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `CAP_PREVIEW_CACHE_TTL_S` | `120` | How long a `preview_id` stays valid before expiry |
+| `CAP_PING_INTERVAL_S` | `480` | Session keep-alive ping interval |
 
 ### Credential-exec helpers (`CAP_*_CMD`)
 
@@ -400,7 +407,7 @@ The `cli/` layer never talks to the API directly — every command parses argume
 ```bash
 pip install -e ".[dev]"
 pytest -q              # full test suite
-ruff check .           # lint
+ruff check capital_cli tests   # lint
 mypy capital_cli       # type-check the whole package (matches CI)
 ```
 
