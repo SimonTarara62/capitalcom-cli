@@ -18,7 +18,7 @@ pip install -e ".[dev]"
 
 ```bash
 pytest -q              # unit tests (offline, no credentials needed)
-ruff check .           # lint
+ruff check capital_cli tests   # lint
 mypy capital_cli       # type-check the whole package
 ```
 

@@ -229,9 +229,7 @@ class CapitalClient:
 
         raise UpstreamError("Request failed for unknown reason")
 
-    async def get(
-        self, path: str, *, params: dict[str, Any] | None = None
-    ) -> httpx.Response:
+    async def get(self, path: str, *, params: dict[str, Any] | None = None) -> httpx.Response:
         """Make GET request."""
         return await self.request("GET", path, params=params)
 
@@ -251,9 +249,7 @@ class CapitalClient:
             max_retries=1,  # No retries for POSTs
         )
 
-    async def put(
-        self, path: str, *, json: dict[str, Any] | None = None
-    ) -> httpx.Response:
+    async def put(self, path: str, *, json: dict[str, Any] | None = None) -> httpx.Response:
         """Make PUT request."""
         return await self.request(
             "PUT",

@@ -64,7 +64,16 @@ def test_history_activity_detailed(runner, mock_account):
     mock_account.get.return_value.json.return_value = {"activities": []}
     result = runner.invoke(
         app,
-        ["--json", "account", "history-activity", "--last", "3600", "--detailed", "--deal-id", "D9"],
+        [
+            "--json",
+            "account",
+            "history-activity",
+            "--last",
+            "3600",
+            "--detailed",
+            "--deal-id",
+            "D9",
+        ],
     )
     assert result.exit_code == 0
     params = mock_account.get.await_args.kwargs["params"]
@@ -88,7 +97,15 @@ def test_prefs_set_leverage(runner, mock_account, monkeypatch):
     mock_account.put.return_value.json.return_value = {"status": "SUCCESS"}
     result = runner.invoke(
         app,
-        ["account", "prefs-set", "--leverage", "CRYPTOCURRENCIES=2", "--leverage", "CURRENCIES=20", "--yes"],
+        [
+            "account",
+            "prefs-set",
+            "--leverage",
+            "CRYPTOCURRENCIES=2",
+            "--leverage",
+            "CURRENCIES=20",
+            "--yes",
+        ],
     )
     assert result.exit_code == 0
     assert mock_account.put.await_args.args[0] == "/accounts/preferences"

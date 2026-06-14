@@ -215,9 +215,7 @@ class RiskEngine:
                 all_checks_passed=False,
             )
 
-        checks.append(
-            RiskCheck(check="trading_enabled", passed=True, message="Trading is enabled")
-        )
+        checks.append(RiskCheck(check="trading_enabled", passed=True, message="Trading is enabled"))
 
         # Check 2: Epic allowlist
         if not self.config.is_epic_allowed(request.epic):
@@ -235,7 +233,9 @@ class RiskEngine:
             )
 
         checks.append(
-            RiskCheck(check="epic_allowed", passed=True, message=f"Epic '{request.epic}' is allowed")
+            RiskCheck(
+                check="epic_allowed", passed=True, message=f"Epic '{request.epic}' is allowed"
+            )
         )
 
         # Check 3: Daily order limit
@@ -346,9 +346,7 @@ class RiskEngine:
 
         return result
 
-    async def preview_working_order(
-        self, request: PreviewWorkingOrderRequest
-    ) -> PreviewResult:
+    async def preview_working_order(self, request: PreviewWorkingOrderRequest) -> PreviewResult:
         """Preview a working order (similar to position preview)."""
         # Convert to position request for validation
         position_request = PreviewPositionRequest(
@@ -409,9 +407,7 @@ class RiskEngine:
 
         return preview
 
-    def validate_execution_guards(
-        self, *, confirm: bool, preview_id: str | None = None
-    ) -> None:
+    def validate_execution_guards(self, *, confirm: bool, preview_id: str | None = None) -> None:
         """
         Validate execution guards before trade execution.
 

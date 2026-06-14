@@ -96,6 +96,15 @@ class Output:
             table.add_row(*[_fmt(item.get(col)) for col in columns])
         self.console.print(table)
 
+    def json_line(self, payload: Any) -> None:
+        """Print ONE compact JSON object to stdout and flush.
+
+        Used for NDJSON streaming so an agent watch-loop can consume each
+        tick/bar/snapshot as it arrives (one ``json.loads``-able line each),
+        rather than a single accumulated blob at the end.
+        """
+        print(json.dumps(payload, default=str), flush=True)
+
     def raw(self, payload: Any) -> None:
         """Print a payload as-is (JSON in json mode, pretty otherwise)."""
         if self.json_mode:

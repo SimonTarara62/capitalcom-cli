@@ -11,6 +11,7 @@ import typer
 from capital_cli import __version__
 from capital_cli.cli import (
     account_cmds,
+    doctor_cmds,
     market_cmds,
     session_cmds,
     stream_cmds,
@@ -23,6 +24,11 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=True,
     help="capctl — command-line client for the Capital.com Open API.",
+    epilog=(
+        "Getting started:\n"
+        "  capctl doctor          # check env, credentials, and trading status\n"
+        "  capctl session login   # create a session and store auth tokens"
+    ),
     rich_markup_mode="rich",
     # Disable Typer's pretty-exceptions wrapper so Click UsageErrors propagate to
     # run_cli() (which renders them as structured JSON under --json). Otherwise
@@ -43,9 +49,7 @@ def _version_callback(value: bool) -> None:
 @app.callback()
 def main(
     ctx: typer.Context,
-    json_output: bool = typer.Option(
-        False, "--json", help="Emit raw JSON instead of tables."
-    ),
+    json_output: bool = typer.Option(False, "--json", help="Emit raw JSON instead of tables."),
     env_file: Path | None = typer.Option(
         None, "--env-file", help="Path to a .env credentials file."
     ),
@@ -90,6 +94,7 @@ app.add_typer(account_cmds.app, name="account")
 app.add_typer(trade_cmds.app, name="trade")
 app.add_typer(watchlist_cmds.app, name="watchlist")
 app.add_typer(stream_cmds.app, name="stream")
+app.command(name="doctor")(doctor_cmds.doctor)
 
 
 _GLOBAL_FLAGS = {"--json", "--plain", "--no-color"}

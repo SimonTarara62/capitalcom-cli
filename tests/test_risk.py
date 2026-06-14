@@ -226,13 +226,9 @@ async def test_dealing_rules_non_finite_increment_does_not_crash():
 def test_validate_size_guards_non_positive_increment():
     engine = RiskEngine()
     # increment <= 0 must not raise ZeroDivision / produce garbage.
-    effective, check = engine._validate_size(
-        1.0, 0.1, 1000.0, 0.0, auto_normalize=False
-    )
+    effective, check = engine._validate_size(1.0, 0.1, 1000.0, 0.0, auto_normalize=False)
     assert isinstance(check, RiskCheck)
     assert effective == 1.0
     assert check.passed is True
-    effective, check = engine._validate_size(
-        1.0, 0.1, 1000.0, -1.0, auto_normalize=False
-    )
+    effective, check = engine._validate_size(1.0, 0.1, 1000.0, -1.0, auto_normalize=False)
     assert check.passed is True

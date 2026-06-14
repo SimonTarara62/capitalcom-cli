@@ -168,9 +168,7 @@ def _run_credential_cmd(field: str, command: str) -> str:
     except FileNotFoundError as exc:
         raise ConfigError(f"{var} command not found: {argv[0]}") from exc
     except subprocess.TimeoutExpired as exc:
-        raise ConfigError(
-            f"{var} timed out after {_CREDENTIAL_CMD_TIMEOUT_S}s."
-        ) from exc
+        raise ConfigError(f"{var} timed out after {_CREDENTIAL_CMD_TIMEOUT_S}s.") from exc
     except OSError as exc:
         raise ConfigError(f"{var} failed to execute: {exc.strerror}") from exc
     if result.returncode != 0:

@@ -8,6 +8,8 @@ import typer
 
 from capital_cli.cli.live_guard import warn_if_live
 from capital_cli.cli.runner import run
+from capital_cli.core.audit import audit_mutation
+from capital_cli.core.config import get_config
 from capital_cli.core.http_client import get_client
 from capital_cli.core.models import (
     Direction,
@@ -52,6 +54,22 @@ async def _wait_for_confirmation(
     return result
 
 
+def _mutation_status(data: dict[str, Any]) -> str:
+    """Derive an audit status string from a broker mutation response.
+
+    Prefers the confirmation's normalized ``status`` (ACCEPTED/REJECTED/TIMEOUT),
+    then a top-level ``dealStatus``, then ``status``, else ``SUBMITTED``.
+    """
+    confirmation = data.get("confirmation")
+    if isinstance(confirmation, dict) and confirmation.get("status"):
+        return str(confirmation["status"])
+    if data.get("dealStatus"):
+        return str(data["dealStatus"])
+    if data.get("status"):
+        return str(data["status"])
+    return "SUBMITTED"
+
+
 def _parse_direction(direction: str) -> Direction:
     try:
         return Direction(direction.upper())
@@ -81,7 +99,13 @@ def _preview_payload(preview: Any) -> dict[str, Any]:
 # ----- Read-only -----
 
 
-@app.command()
+@app.command(
+    epilog=(
+        "Examples:\n"
+        "  # List open positions as JSON and sum unrealised P&L with jq\n"
+        "  capctl --json trade positions | jq '[.positions[].position.upl] | add'"
+    )
+)
 def positions(ctx: typer.Context) -> None:
     """List open positions."""
     out = ctx.obj.out
@@ -187,7 +211,16 @@ def confirm(
 # ----- Preview (no side effects) -----
 
 
-@app.command("preview-position")
+@app.command(
+    "preview-position",
+    epilog=(
+        "Examples:\n"
+        "  # 1) Preview, capturing the preview_id\n"
+        "  PV=$(capctl --json trade preview-position GOLD BUY 1 | jq -r .preview_id)\n"
+        "  # 2) Execute that preview (requires --yes)\n"
+        '  capctl --json trade execute-position "$PV" --yes'
+    ),
+)
 def preview_position(
     ctx: typer.Context,
     epic: str = typer.Argument(..., help="Market EPIC."),
@@ -200,7 +233,9 @@ def preview_position(
     guaranteed_stop: bool = typer.Option(False, "--guaranteed-stop"),
     trailing_stop: bool = typer.Option(False, "--trailing-stop"),
     auto_normalize_size: bool = typer.Option(
-        False, "--auto-normalize-size", help="Round size to the broker increment instead of failing."
+        False,
+        "--auto-normalize-size",
+        help="Round size to the broker increment instead of failing.",
     ),
 ) -> None:
     """Validate a position against risk policy and return a preview_id (no trade)."""
@@ -208,6 +243,7 @@ def preview_position(
     direction_e = _parse_direction(direction)
 
     async def _do() -> dict[str, Any]:
+        warn_if_live(out)
         sm = get_session_manager()
         risk = get_risk_engine()
         await sm.ensure_logged_in()
@@ -241,7 +277,16 @@ def preview_position(
         )
 
 
-@app.command("preview-order")
+@app.command(
+    "preview-order",
+    epilog=(
+        "Examples:\n"
+        "  # 1) Preview a LIMIT working order, capturing the preview_id\n"
+        "  PV=$(capctl --json trade preview-order GOLD BUY LIMIT 1900 1 | jq -r .preview_id)\n"
+        "  # 2) Execute that preview (requires --yes)\n"
+        '  capctl --json trade execute-order "$PV" --yes'
+    ),
+)
 def preview_order(
     ctx: typer.Context,
     epic: str = typer.Argument(..., help="Market EPIC."),
@@ -253,7 +298,9 @@ def preview_order(
     profit_level: float | None = typer.Option(None, "--profit-level"),
     good_till_date: str | None = typer.Option(None, "--good-till", help="Expiry ISO 8601."),
     auto_normalize_size: bool = typer.Option(
-        False, "--auto-normalize-size", help="Round size to the broker increment instead of failing."
+        False,
+        "--auto-normalize-size",
+        help="Round size to the broker increment instead of failing.",
     ),
 ) -> None:
     """Validate a working order and return a preview_id (no order created)."""
@@ -262,6 +309,7 @@ def preview_order(
     order_type_e = _parse_order_type(order_type)
 
     async def _do() -> dict[str, Any]:
+        warn_if_live(out)
         sm = get_session_manager()
         risk = get_risk_engine()
         await sm.ensure_logged_in()
@@ -292,7 +340,9 @@ def preview_order(
 # ----- Execute (side effects, guarded) -----
 
 
-def _build_broker_request(normalized: dict[str, Any], *, include_order_fields: bool) -> dict[str, Any]:
+def _build_broker_request(
+    normalized: dict[str, Any], *, include_order_fields: bool
+) -> dict[str, Any]:
     body: dict[str, Any] = {
         "epic": normalized["epic"],
         "direction": normalized["direction"],
@@ -320,7 +370,15 @@ def _build_broker_request(normalized: dict[str, Any], *, include_order_fields: b
     return body
 
 
-@app.command("execute-position")
+@app.command(
+    "execute-position",
+    epilog=(
+        "Examples:\n"
+        "  # Execute a previewed position; a TIMEOUT confirmation is ambiguous —\n"
+        "  # reconcile with 'trade positions' before retrying.\n"
+        '  capctl --json trade execute-position "$PREVIEW_ID" --yes'
+    ),
+)
 def execute_position(
     ctx: typer.Context,
     preview_id: str = typer.Argument(..., help="Preview ID from preview-position."),
@@ -352,12 +410,29 @@ def execute_position(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="execute-position",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            epic=normalized.get("epic"),
+            size=normalized.get("size"),
+            preview_id=preview_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade execute-position"), title="Execute position")
 
 
-@app.command("execute-order")
+@app.command(
+    "execute-order",
+    epilog=(
+        "Examples:\n"
+        "  # Execute a previewed working order; reconcile via 'trade orders' on TIMEOUT.\n"
+        '  capctl --json trade execute-order "$PREVIEW_ID" --yes'
+    ),
+)
 def execute_order(
     ctx: typer.Context,
     preview_id: str = typer.Argument(..., help="Preview ID from preview-order."),
@@ -386,12 +461,28 @@ def execute_order(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="execute-order",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            epic=normalized.get("epic"),
+            size=normalized.get("size"),
+            preview_id=preview_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade execute-order"), title="Execute order")
 
 
-@app.command()
+@app.command(
+    epilog=(
+        "Examples:\n"
+        "  # Close a position by deal ID (requires --yes)\n"
+        "  capctl --json trade close DIAAAAA... --yes"
+    )
+)
 def close(
     ctx: typer.Context,
     deal_id: str = typer.Argument(..., help="Position deal ID to close."),
@@ -415,6 +506,13 @@ def close(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="close",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade close"), title="Close position")
@@ -444,6 +542,13 @@ def cancel(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="cancel",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade cancel"), title="Cancel order")
@@ -498,6 +603,13 @@ def amend_position(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="amend-position",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade amend-position"), title="Amend position")
@@ -533,7 +645,9 @@ def amend_order(
         if value is not None:
             body[key] = value
     if not body:
-        raise typer.BadParameter("Provide at least one field to amend (level, good-till, stop/profit).")
+        raise typer.BadParameter(
+            "Provide at least one field to amend (level, good-till, stop/profit)."
+        )
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
@@ -548,6 +662,13 @@ def amend_order(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="amend-order",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade amend-order"), title="Amend order")

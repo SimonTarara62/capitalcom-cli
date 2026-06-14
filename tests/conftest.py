@@ -15,9 +15,7 @@ def runner() -> CliRunner:
 def _credentials(monkeypatch, tmp_path):
     """Provide valid credentials via env so get_config() never fails."""
     env = tmp_path / "test.env"
-    env.write_text(
-        "CAP_ENV=demo\nCAP_API_KEY=k\nCAP_IDENTIFIER=a@b.c\nCAP_API_PASSWORD=p\n"
-    )
+    env.write_text("CAP_ENV=demo\nCAP_API_KEY=k\nCAP_IDENTIFIER=a@b.c\nCAP_API_PASSWORD=p\n")
     monkeypatch.setenv("CAP_ENV_FILE", str(env))
     from capital_cli.core.config import reset_config
 

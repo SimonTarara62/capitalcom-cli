@@ -33,9 +33,7 @@ def test_session_tokens_is_expired_with_aware_datetime():
     old = datetime.now(timezone.utc) - timedelta(minutes=10)
     tokens = SessionTokens(cst="c", x_security_token="x", last_used_at=old)
     assert tokens.is_expired() is True
-    fresh = SessionTokens(
-        cst="c", x_security_token="x", last_used_at=datetime.now(timezone.utc)
-    )
+    fresh = SessionTokens(cst="c", x_security_token="x", last_used_at=datetime.now(timezone.utc))
     assert fresh.is_expired() is False
 
 
@@ -57,9 +55,7 @@ def test_no_utcnow_deprecation_warning_in_risk_models_session():
         tokens = SessionTokens(cst="c", x_security_token="x")
         tokens.update_last_used()
         tokens.is_expired()
-        preview = PreviewResult(
-            normalized_request={}, checks=[], all_checks_passed=True
-        )
+        preview = PreviewResult(normalized_request={}, checks=[], all_checks_passed=True)
         preview.is_expired()
         # risk: daily-counter date key
         from capital_cli.core.risk import RiskEngine

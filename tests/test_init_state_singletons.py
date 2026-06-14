@@ -36,8 +36,6 @@ def test_switching_demo_to_live_changes_client_base_url(monkeypatch):
     )
     live_client = get_client()
     assert "demo-api-capital" not in live_client.config.api_base_url
-    assert live_client.config.api_base_url.startswith(
-        "https://api-capital.backend-capital.com"
-    )
+    assert live_client.config.api_base_url.startswith("https://api-capital.backend-capital.com")
     # A fresh instance, not the stale demo one.
     assert live_client is not demo_client

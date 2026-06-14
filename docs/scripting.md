@@ -23,6 +23,9 @@ Or point at a file with `--env-file /path/to/.env`.
   closed** (exit code 4) rather than hang — safe for CI.
 - Use `--json` for machine-readable output and `--plain` for tab-delimited rows.
 - Disable color with `--no-color` or `NO_COLOR=1`.
+- The global flags `--json`, `--plain`, and `--no-color` work in **any
+  position** — `capctl session status --json` is equivalent to
+  `capctl --json session status`.
 
 ## Exit codes
 
@@ -50,6 +53,27 @@ case $? in
   7) echo "broker/upstream error" ;;
 esac
 ```
+
+## Safe retries & ambiguous confirmations
+
+A confirmation result of `{"status": "TIMEOUT"}` (from `execute-position`,
+`execute-order`, `close`, `cancel`, or `amend-*` with `--wait`) is **ambiguous**:
+the request may have reached the broker and the order may have landed — capctl
+simply stopped waiting for the confirmation. There is **no broker idempotency
+key**, so blindly re-running `execute-*` can place a **duplicate** order.
+
+On TIMEOUT, an automation or agent MUST reconcile before retrying:
+
+```bash
+capctl --json trade execute-position "$PREVIEW" --yes
+# If the confirmation status is TIMEOUT, do NOT resend. Reconcile first:
+capctl --json trade positions   # did the position appear?
+capctl --json trade orders      # or did a working order land?
+# Only retry execute-* if neither shows the intended order.
+```
+
+The same applies to `close`/`cancel`/`amend-*`: re-check `trade positions` /
+`trade orders` to see whether the mutation already took effect.
 
 ## jq recipes
 

@@ -68,9 +68,7 @@ def test_init_state_applies_env_overrides(monkeypatch, tmp_path):
 
     env = tmp_path / "x.env"
     env.write_text("CAP_API_KEY=k\nCAP_IDENTIFIER=a@b.c\nCAP_API_PASSWORD=p\n")
-    state = init_state(
-        json_mode=True, env_file=env, env="live", account="ACC9", verbose=False
-    )
+    state = init_state(json_mode=True, env_file=env, env="live", account="ACC9", verbose=False)
     import os
 
     assert os.environ["CAP_ENV_FILE"] == str(env)

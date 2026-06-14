@@ -86,9 +86,7 @@ def test_explicit_env_var_takes_precedence_over_cmd(monkeypatch):
 def test_cmd_output_overrides_dotenv_value(monkeypatch, tmp_path):
     env_file = tmp_path / "creds.env"
     env_file.write_text(
-        "CAP_API_KEY=dummy-key\n"
-        "CAP_IDENTIFIER=dummy@example.com\n"
-        "CAP_API_PASSWORD=from-dotenv\n"
+        "CAP_API_KEY=dummy-key\nCAP_IDENTIFIER=dummy@example.com\nCAP_API_PASSWORD=from-dotenv\n"
     )
     monkeypatch.setenv("CAP_ENV_FILE", str(env_file))
     monkeypatch.setenv("CAP_API_PASSWORD_CMD", "printf from-cmd")
@@ -99,9 +97,7 @@ def test_cmd_output_overrides_dotenv_value(monkeypatch, tmp_path):
 def test_dotenv_value_used_when_no_cmd_and_no_env(monkeypatch, tmp_path):
     env_file = tmp_path / "creds.env"
     env_file.write_text(
-        "CAP_API_KEY=dummy-key\n"
-        "CAP_IDENTIFIER=dummy@example.com\n"
-        "CAP_API_PASSWORD=from-dotenv\n"
+        "CAP_API_KEY=dummy-key\nCAP_IDENTIFIER=dummy@example.com\nCAP_API_PASSWORD=from-dotenv\n"
     )
     monkeypatch.setenv("CAP_ENV_FILE", str(env_file))
     cfg = get_config()
@@ -123,7 +119,7 @@ def test_helper_does_not_inherit_earlier_resolved_secret(monkeypatch, tmp_path):
     # Second helper records whatever CAP_API_KEY it inherited from its environment.
     helper = (
         f"{sys.executable} -c "
-        "\"import os,pathlib;"
+        '"import os,pathlib;'
         f"pathlib.Path({str(seen_file)!r}).write_text("
         "os.environ.get('CAP_API_KEY','MISSING'));"
         "print('pw-value')\""

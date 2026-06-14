@@ -58,11 +58,13 @@ def prices(
     ctx: typer.Context,
     epics: str = typer.Argument(..., help="Comma-separated EPICs (max 40)."),
     duration: float = typer.Option(300.0, "--duration", help="Stream duration in seconds."),
-    interval: float = typer.Option(
-        1.0, "--interval", help="Min seconds between recorded updates."
-    ),
+    interval: float = typer.Option(1.0, "--interval", help="Min seconds between recorded updates."),
 ) -> None:
-    """Stream live bid/offer prices."""
+    """Stream live bid/offer prices.
+
+    With --json, emits NDJSON: one compact JSON object per tick to stdout as it
+    arrives (flushed per line), suitable for an agent/script watch-loop.
+    """
     out = ctx.obj.out
     parsed = _parse_epics(epics)
 
@@ -90,6 +92,8 @@ def prices(
                     if (now - last_emit).total_seconds() >= interval:
                         collected.append(row)
                         last_emit = now
+                        if out.json_mode:
+                            out.json_line(row)
                     if live:
                         live.update(_price_table(latest))
         finally:
@@ -103,9 +107,7 @@ def prices(
         }
 
     data = run(out, _do, label="stream prices")
-    if out.json_mode:
-        out.raw(data)
-    else:
+    if not out.json_mode:
         out.note(f"Collected {data['ticks_received']} updates over {data['duration_s']}s.")
 
 
@@ -147,7 +149,9 @@ def alerts(
                         "timestamp": tick.timestamp,
                     }
                     triggered.append(event)
-                    if not out.json_mode:
+                    if out.json_mode:
+                        out.json_line(event)
+                    else:
                         out.success(f"ALERT {tick.epic} {direction_u} {level} (now {mid:.2f})")
                     if auto_close:
                         break
@@ -155,7 +159,11 @@ def alerts(
 
     data = run(out, _do, label="stream alerts")
     if out.json_mode:
-        out.raw(data)
+        # NDJSON: the crossing event (if any) was already emitted as its own line
+        # above. Emit the final summary too so a non-triggering run still yields a
+        # parseable object.
+        if not data["triggered"]:
+            out.json_line(data)
     elif not data["triggered"]:
         out.note("No alert triggered within the duration.")
 
@@ -166,7 +174,11 @@ def portfolio(
     duration: float = typer.Option(300.0, "--duration", help="Stream duration in seconds."),
     interval: float = typer.Option(5.0, "--interval", help="Recording interval in seconds."),
 ) -> None:
-    """Stream live price snapshots for currently open positions."""
+    """Stream live price snapshots for currently open positions.
+
+    With --json, emits NDJSON: one compact JSON object per snapshot to stdout as
+    it arrives (flushed per line).
+    """
     out = ctx.obj.out
     from capital_cli.core.http_client import get_client
 
@@ -176,9 +188,7 @@ def portfolio(
         client = get_client()
         positions = (await client.get("/positions")).json().get("positions", [])
         epics = [
-            p.get("market", {}).get("epic")
-            for p in positions
-            if p.get("market", {}).get("epic")
+            p.get("market", {}).get("epic") for p in positions if p.get("market", {}).get("epic")
         ]
         if not epics:
             return {"positions": 0, "note": "No open positions to stream."}
@@ -192,11 +202,16 @@ def portfolio(
                 latest[tick.epic] = (tick.bid + tick.offer) / 2
                 now = datetime.now(timezone.utc)
                 if (now - last_emit).total_seconds() >= interval:
-                    snapshots.append({"prices": dict(latest), "timestamp": tick.timestamp})
+                    snapshot = {"prices": dict(latest), "timestamp": tick.timestamp}
+                    snapshots.append(snapshot)
                     last_emit = now
+                    if out.json_mode:
+                        out.json_line(snapshot)
         return {"positions": len(epics), "snapshots": snapshots[-50:]}
 
-    out.raw(run(out, _do, label="stream portfolio"))
+    data = run(out, _do, label="stream portfolio")
+    if not out.json_mode:
+        out.raw(data)
 
 
 @app.command()
@@ -204,7 +219,9 @@ def candles(
     ctx: typer.Context,
     epics: str = typer.Argument(..., help="Comma-separated EPICs (max 40)."),
     resolution: str = typer.Option(
-        "MINUTE", "--resolution", help="MINUTE, MINUTE_5, MINUTE_15, MINUTE_30, HOUR, HOUR_4, DAY, WEEK."
+        "MINUTE",
+        "--resolution",
+        help="MINUTE, MINUTE_5, MINUTE_15, MINUTE_30, HOUR, HOUR_4, DAY, WEEK.",
     ),
     bar_type: str = typer.Option("classic", "--type", help="classic or heikin-ashi."),
     duration: float = typer.Option(300.0, "--duration", help="Stream duration in seconds."),
@@ -212,7 +229,11 @@ def candles(
         0.0, "--interval", help="Min seconds between recorded bars (0 = every update)."
     ),
 ) -> None:
-    """Stream live OHLC candlesticks."""
+    """Stream live OHLC candlesticks.
+
+    With --json, emits NDJSON: one compact JSON object per bar to stdout as it
+    arrives (flushed per line).
+    """
     out = ctx.obj.out
     parsed = _parse_epics(epics)
     if bar_type not in ("classic", "heikin-ashi"):
@@ -242,6 +263,8 @@ def candles(
                     if (now - last_emit).total_seconds() >= interval:
                         collected.append(row)
                         last_emit = now
+                        if out.json_mode:
+                            out.json_line(row)
                     if live:
                         live.update(_candle_table(latest))
         finally:
@@ -257,7 +280,5 @@ def candles(
         }
 
     data = run(out, _do, label="stream candles")
-    if out.json_mode:
-        out.raw(data)
-    else:
+    if not out.json_mode:
         out.note(f"Collected {data['bars_received']} candles over {data['duration_s']}s.")

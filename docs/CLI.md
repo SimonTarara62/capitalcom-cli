@@ -23,14 +23,35 @@ $ capctl [OPTIONS] COMMAND [ARGS]...
 * `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
 * `--help`: Show this message and exit.
 
+Getting started:
+  capctl doctor          # check env, credentials, and trading status
+  capctl session login   # create a session and store auth tokens
+
 **Commands**:
 
+* `doctor`: Check env, credentials, and trading status...
 * `session`: Session lifecycle: login, ping, logout.
 * `market`: Market data: search, prices, sentiment.
 * `account`: Accounts: list, preferences, history.
 * `trade`: Trading: positions, orders, preview, execute.
 * `watchlist`: Watchlists: list, create, add, remove.
 * `stream`: Real-time streaming: prices, alerts,...
+
+## `capctl doctor`
+
+Check env, credentials, and trading status (no secrets in output).
+
+Run this first to confirm capctl is wired up correctly before trading.
+
+**Usage**:
+
+```console
+$ capctl doctor [OPTIONS]
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
 
 ## `capctl session`
 
@@ -476,6 +497,10 @@ $ capctl trade positions [OPTIONS]
 
 * `--help`: Show this message and exit.
 
+Examples:
+  # List open positions as JSON and sum unrealised P&L with jq
+  capctl --json trade positions | jq '[.positions[].position.upl] | add'
+
 ### `capctl trade position`
 
 Get a single position by deal ID.
@@ -555,6 +580,12 @@ $ capctl trade preview-position [OPTIONS] EPIC DIRECTION SIZE
 * `--auto-normalize-size`: Round size to the broker increment instead of failing.
 * `--help`: Show this message and exit.
 
+Examples:
+  # 1) Preview, capturing the preview_id
+  PV=$(capctl --json trade preview-position GOLD BUY 1 | jq -r .preview_id)
+  # 2) Execute that preview (requires --yes)
+  capctl --json trade execute-position "$PV" --yes
+
 ### `capctl trade preview-order`
 
 Validate a working order and return a preview_id (no order created).
@@ -581,6 +612,12 @@ $ capctl trade preview-order [OPTIONS] EPIC DIRECTION ORDER_TYPE LEVEL SIZE
 * `--auto-normalize-size`: Round size to the broker increment instead of failing.
 * `--help`: Show this message and exit.
 
+Examples:
+  # 1) Preview a LIMIT working order, capturing the preview_id
+  PV=$(capctl --json trade preview-order GOLD BUY LIMIT 1900 1 | jq -r .preview_id)
+  # 2) Execute that preview (requires --yes)
+  capctl --json trade execute-order "$PV" --yes
+
 ### `capctl trade execute-position`
 
 Execute a previewed position (SIDE EFFECT).
@@ -601,6 +638,11 @@ $ capctl trade execute-position [OPTIONS] PREVIEW_ID
 * `--wait / --no-wait`: Wait for broker confirmation.  [default: wait]
 * `--timeout FLOAT`: [default: 15.0]
 * `--help`: Show this message and exit.
+
+Examples:
+  # Execute a previewed position; a TIMEOUT confirmation is ambiguous —
+  # reconcile with 'trade positions' before retrying.
+  capctl --json trade execute-position "$PREVIEW_ID" --yes
 
 ### `capctl trade execute-order`
 
@@ -623,6 +665,10 @@ $ capctl trade execute-order [OPTIONS] PREVIEW_ID
 * `--timeout FLOAT`: [default: 15.0]
 * `--help`: Show this message and exit.
 
+Examples:
+  # Execute a previewed working order; reconcile via 'trade orders' on TIMEOUT.
+  capctl --json trade execute-order "$PREVIEW_ID" --yes
+
 ### `capctl trade close`
 
 Close an open position (SIDE EFFECT).
@@ -643,6 +689,10 @@ $ capctl trade close [OPTIONS] DEAL_ID
 * `--wait / --no-wait`: Wait for broker confirmation.  [default: wait]
 * `--timeout FLOAT`: [default: 15.0]
 * `--help`: Show this message and exit.
+
+Examples:
+  # Close a position by deal ID (requires --yes)
+  capctl --json trade close DIAAAAA... --yes
 
 ### `capctl trade cancel`
 
@@ -877,6 +927,9 @@ $ capctl stream [OPTIONS] COMMAND [ARGS]...
 
 Stream live bid/offer prices.
 
+With --json, emits NDJSON: one compact JSON object per tick to stdout as it
+arrives (flushed per line), suitable for an agent/script watch-loop.
+
 **Usage**:
 
 ```console
@@ -919,6 +972,9 @@ $ capctl stream alerts [OPTIONS] EPIC LEVEL
 
 Stream live price snapshots for currently open positions.
 
+With --json, emits NDJSON: one compact JSON object per snapshot to stdout as
+it arrives (flushed per line).
+
 **Usage**:
 
 ```console
@@ -934,6 +990,9 @@ $ capctl stream portfolio [OPTIONS]
 ### `capctl stream candles`
 
 Stream live OHLC candlesticks.
+
+With --json, emits NDJSON: one compact JSON object per bar to stdout as it
+arrives (flushed per line).
 
 **Usage**:
 
