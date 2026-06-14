@@ -68,5 +68,7 @@ def audit_mutation(
         # appends on POSIX; a partial line is preferable to a lost trade record.
         with path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, default=str) + "\n")
-    except OSError as exc:
+    except Exception as exc:  # noqa: BLE001 - best-effort: an audit-log failure
+        # must NEVER abort or alter a real trade, so swallow ANY error (not just
+        # OSError — e.g. an unexpected serialization/typing error) after logging.
         logger.warning("Failed to write audit log to %s: %s", path_str, exc)
