@@ -2,6 +2,8 @@
 
 import logging
 import os
+import shlex
+import subprocess
 from enum import Enum
 from pathlib import Path
 
@@ -9,6 +11,10 @@ from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .errors import ConfigError, ConfigMissingError
+
+# Secret fields that can be sourced from a command via CAP_<FIELD>_CMD.
+_CREDENTIAL_FIELDS = ("CAP_API_KEY", "CAP_IDENTIFIER", "CAP_API_PASSWORD")
+_CREDENTIAL_CMD_TIMEOUT_S = 10
 
 
 class CapEnv(str, Enum):
@@ -130,6 +136,81 @@ class Config(BaseSettings):
         logging.getLogger("websockets").setLevel(logging.WARNING)
 
 
+def _run_credential_cmd(field: str, command: str) -> str:
+    """Run a CAP_<field>_CMD helper and return its stripped stdout.
+
+    Uses shell=False (shlex.split) and a timeout. Raises ConfigError on a
+    non-zero exit, timeout, parse failure, or empty output. The error message
+    NEVER includes the command's stdout/stderr, so a secret can't leak via the
+    error path.
+    """
+    var = f"{field}_CMD"
+    try:
+        argv = shlex.split(command)
+    except ValueError as exc:
+        raise ConfigError(f"{var} is not a valid command line: {exc}") from exc
+    if not argv:
+        raise ConfigError(f"{var} is empty.")
+    # Defense in depth: strip every CAP_* var from the helper's environment so a
+    # third-party/user helper (op/vault/pass/script) never inherits an unrelated
+    # CAP_* secret — whether already-resolved-and-injected or merely ambient.
+    # Everything else (PATH, HOME, ...) is preserved so helpers still work.
+    clean_env = {k: v for k, v in os.environ.items() if not k.startswith("CAP_")}
+    try:
+        result = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            timeout=_CREDENTIAL_CMD_TIMEOUT_S,
+            check=False,
+            env=clean_env,
+        )
+    except FileNotFoundError as exc:
+        raise ConfigError(f"{var} command not found: {argv[0]}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise ConfigError(
+            f"{var} timed out after {_CREDENTIAL_CMD_TIMEOUT_S}s."
+        ) from exc
+    except OSError as exc:
+        raise ConfigError(f"{var} failed to execute: {exc.strerror}") from exc
+    if result.returncode != 0:
+        # Do not include stdout/stderr — they may contain the secret.
+        raise ConfigError(f"{var} exited with status {result.returncode}.")
+    value = result.stdout.strip()
+    if not value:
+        raise ConfigError(f"{var} produced no output.")
+    return value
+
+
+def _resolve_credential_cmds() -> None:
+    """Inject CAP_<FIELD>_CMD outputs into the environment before Config is built.
+
+    Precedence (highest first):
+      1. explicit CAP_<FIELD> env var  — left untouched (never overridden)
+      2. CAP_<FIELD>_CMD output        — injected as an env var, so it beats .env
+      3. .env file value               — read by pydantic-settings if neither above
+
+    Injecting the resolved secret as an env var works because pydantic-settings
+    ranks process env vars above the .env file, so the _CMD result overrides a
+    value in .env but an explicit real env var still wins (we skip those).
+    """
+    # Resolve every helper first, collecting outputs locally; only inject them
+    # into os.environ AFTER the loop. Injecting inside the loop would let a later
+    # helper inherit an earlier-resolved secret via its subprocess environment.
+    resolved: dict[str, str] = {}
+    for field in _CREDENTIAL_FIELDS:
+        if os.environ.get(field):
+            # An explicit env value wins; don't run the command. Note: an empty
+            # string is intentionally treated as unset (falsy) and falls through
+            # to the _CMD helper below.
+            continue
+        command = os.environ.get(f"{field}_CMD")
+        if not command:
+            continue  # fall through to .env / pydantic default
+        resolved[field] = _run_credential_cmd(field, command)
+    os.environ.update(resolved)
+
+
 _config: Config | None = None
 
 
@@ -137,6 +218,7 @@ def get_config() -> Config:
     """Get or lazily build the global config from the resolved env file."""
     global _config
     if _config is None:
+        _resolve_credential_cmds()
         try:
             _config = Config(_env_file=_resolve_env_file())  # type: ignore[call-arg]
         except ValidationError as exc:

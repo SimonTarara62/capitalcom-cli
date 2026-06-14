@@ -188,31 +188,32 @@ class PreviewError(CapitalCLIError):
 # ============================================================
 
 
-def redact_secrets(data: dict[str, Any], secret_keys: set[str] | None = None) -> dict[str, Any]:
-    """Redact secret values from a dictionary."""
-    if secret_keys is None:
-        secret_keys = {
-            "cap_api_key",
-            "cap_api_password",
-            "password",
-            "encryptedPassword",
-            "cst",
-            "x_security_token",
-            "CST",
-            "X-SECURITY-TOKEN",
-            "X-CAP-API-KEY",
-        }
+# Substrings that, if present in a (lower-cased) key, mark its value as secret.
+# Includes the login `identifier` (an email) and any `email` field so credentials
+# never leak into --verbose/debug logs of the login request body.
+# This list deliberately errs toward over-redaction: it is debug-only and
+# fail-safe, so redacting a harmless field is preferable to leaking a secret.
+_SECRET_KEY_SUBSTRINGS = (
+    "password",
+    "token",
+    "key",
+    "secret",
+    "identifier",
+    "email",
+)
 
+
+def redact_secrets(data: dict[str, Any]) -> dict[str, Any]:
+    """Redact secret values (passwords, tokens, keys, login identifier/email) from a dict."""
     redacted: dict[str, Any] = {}
     for key, value in data.items():
-        if any(secret in key.lower() for secret in ["password", "token", "key", "secret"]):
+        if any(secret in key.lower() for secret in _SECRET_KEY_SUBSTRINGS):
             redacted[key] = "***REDACTED***"
         elif isinstance(value, dict):
-            redacted[key] = redact_secrets(value, secret_keys)
+            redacted[key] = redact_secrets(value)
         elif isinstance(value, list):
             redacted[key] = [
-                redact_secrets(item, secret_keys) if isinstance(item, dict) else item
-                for item in value
+                redact_secrets(item) if isinstance(item, dict) else item for item in value
             ]
         else:
             redacted[key] = value
