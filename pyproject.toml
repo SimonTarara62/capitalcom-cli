@@ -40,7 +40,13 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["capital_cli", "capital_cli.core", "capital_cli.cli"]
+packages = [
+    "capital_cli",
+    "capital_cli.core",
+    "capital_cli.cli",
+    "capital_cli.services",
+    "capital_cli.sdk",
+]
 
 [tool.setuptools.dynamic]
 version = {attr = "capital_cli.__version__"}

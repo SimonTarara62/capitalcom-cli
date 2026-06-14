@@ -7,8 +7,7 @@ from typing import Any
 import typer
 
 from capital_cli.cli.runner import run
-from capital_cli.core.http_client import get_client
-from capital_cli.core.session import get_session_manager
+from capital_cli.services.markets import MarketService
 
 app = typer.Typer(no_args_is_help=True, help="Market data: search, prices, sentiment.")
 
@@ -24,18 +23,7 @@ def search(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        params: dict[str, Any] = {}
-        if term:
-            params["searchTerm"] = term
-        if epics:
-            params["epics"] = epics
-        data = (await client.get("/markets", params=params)).json()
-        if "markets" in data and len(data["markets"]) > limit:
-            data["markets"] = data["markets"][:limit]
-        return data
+        return await MarketService().search(term, epics=epics, limit=limit)
 
     data = run(out, _do, label="market search")
     if out.json_mode:
@@ -54,10 +42,7 @@ def get(ctx: typer.Context, epic: str = typer.Argument(..., help="Market EPIC.")
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        return (await client.get(f"/markets/{epic}")).json()
+        return await MarketService().get(epic)
 
     out.raw(run(out, _do, label="market get"))
 
@@ -68,10 +53,7 @@ def nav_root(ctx: typer.Context) -> None:
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        return (await client.get("/marketnavigation")).json()
+        return await MarketService().navigation_root()
 
     data = run(out, _do, label="market nav-root")
     if out.json_mode:
@@ -90,13 +72,7 @@ def nav_node(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        params: dict[str, Any] = {}
-        if limit is not None:
-            params["limit"] = limit
-        return (await client.get(f"/marketnavigation/{node_id}", params=params)).json()
+        return await MarketService().navigation_node(node_id, limit=limit)
 
     out.raw(run(out, _do, label="market nav-node"))
 
@@ -118,15 +94,13 @@ def prices(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        params: dict[str, Any] = {"resolution": resolution, "max": max_candles}
-        if from_date:
-            params["from"] = from_date
-        if to_date:
-            params["to"] = to_date
-        return (await client.get(f"/prices/{epic}", params=params)).json()
+        return await MarketService().prices(
+            epic,
+            resolution=resolution,
+            max_candles=max_candles,
+            from_date=from_date,
+            to_date=to_date,
+        )
 
     out.raw(run(out, _do, label="market prices"))
 
@@ -145,12 +119,7 @@ def sentiment(
         raise typer.BadParameter("Provide at least one market ID.")
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        if len(ids) == 1:
-            return (await client.get(f"/clientsentiment/{ids[0]}")).json()
-        return (await client.get("/clientsentiment", params={"marketIds": ",".join(ids)})).json()
+        return await MarketService().sentiment(ids)
 
     data = run(out, _do, label="market sentiment")
     if out.json_mode:

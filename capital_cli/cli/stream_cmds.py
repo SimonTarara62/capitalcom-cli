@@ -10,8 +10,8 @@ from rich.live import Live
 from rich.table import Table
 
 from capital_cli.cli.runner import run
-from capital_cli.core.session import get_session_manager
-from capital_cli.core.websocket_client import get_websocket_client
+from capital_cli.services.streaming import StreamService
+from capital_cli.services.trading import TradingService
 
 app = typer.Typer(no_args_is_help=True, help="Real-time streaming: prices, alerts, portfolio.")
 
@@ -69,12 +69,9 @@ def prices(
     parsed = _parse_epics(epics)
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        await sm.ensure_logged_in()
         collected: list[dict[str, Any]] = []
         latest: dict[str, Any] = {}
         last_emit = datetime.now(timezone.utc)
-        ws = get_websocket_client()
         live = (
             None
             if out.json_mode
@@ -83,19 +80,17 @@ def prices(
         if live:
             live.__enter__()
         try:
-            async with ws:
-                await ws.subscribe(parsed)
-                async for tick in ws.stream(duration=duration):
-                    row = tick.model_dump()
-                    latest[row["epic"]] = row
-                    now = datetime.now(timezone.utc)
-                    if (now - last_emit).total_seconds() >= interval:
-                        collected.append(row)
-                        last_emit = now
-                        if out.json_mode:
-                            out.json_line(row)
-                    if live:
-                        live.update(_price_table(latest))
+            async for tick in StreamService().prices(parsed, duration=duration):
+                row = tick.model_dump()
+                latest[row["epic"]] = row
+                now = datetime.now(timezone.utc)
+                if (now - last_emit).total_seconds() >= interval:
+                    collected.append(row)
+                    last_emit = now
+                    if out.json_mode:
+                        out.json_line(row)
+                if live:
+                    live.update(_price_table(latest))
         finally:
             if live:
                 live.__exit__(None, None, None)
@@ -129,32 +124,22 @@ def alerts(
         raise typer.BadParameter("--direction must be ABOVE or BELOW.")
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        await sm.ensure_logged_in()
         triggered: list[dict[str, Any]] = []
-        ws = get_websocket_client()
-        async with ws:
-            await ws.subscribe([epic])
-            async for tick in ws.stream(duration=duration):
-                mid = (tick.bid + tick.offer) / 2
-                hit = (direction_u == "ABOVE" and mid >= level) or (
-                    direction_u == "BELOW" and mid <= level
+        async for alert in StreamService().alerts(
+            epic,
+            level,
+            direction=direction_u,
+            auto_close=auto_close,
+            duration=duration,
+        ):
+            event = alert.model_dump()
+            triggered.append(event)
+            if out.json_mode:
+                out.json_line(event)
+            else:
+                out.success(
+                    f"ALERT {alert.epic} {direction_u} {level} (now {alert.current_price:.2f})"
                 )
-                if hit:
-                    event = {
-                        "epic": tick.epic,
-                        "condition": f"LEVEL_{direction_u}",
-                        "trigger_price": level,
-                        "current_price": mid,
-                        "timestamp": tick.timestamp,
-                    }
-                    triggered.append(event)
-                    if out.json_mode:
-                        out.json_line(event)
-                    else:
-                        out.success(f"ALERT {tick.epic} {direction_u} {level} (now {mid:.2f})")
-                    if auto_close:
-                        break
         return {"epic": epic, "level": level, "direction": direction_u, "triggered": triggered}
 
     data = run(out, _do, label="stream alerts")
@@ -180,13 +165,9 @@ def portfolio(
     it arrives (flushed per line).
     """
     out = ctx.obj.out
-    from capital_cli.core.http_client import get_client
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        await sm.ensure_logged_in()
-        client = get_client()
-        positions = (await client.get("/positions")).json().get("positions", [])
+        positions = (await TradingService().list_positions()).get("positions", [])
         epics = [
             p.get("market", {}).get("epic") for p in positions if p.get("market", {}).get("epic")
         ]
@@ -195,18 +176,15 @@ def portfolio(
         snapshots: list[dict[str, Any]] = []
         last_emit = datetime.now(timezone.utc)
         latest: dict[str, Any] = {}
-        ws = get_websocket_client()
-        async with ws:
-            await ws.subscribe(epics[:40])
-            async for tick in ws.stream(duration=duration):
-                latest[tick.epic] = (tick.bid + tick.offer) / 2
-                now = datetime.now(timezone.utc)
-                if (now - last_emit).total_seconds() >= interval:
-                    snapshot = {"prices": dict(latest), "timestamp": tick.timestamp}
-                    snapshots.append(snapshot)
-                    last_emit = now
-                    if out.json_mode:
-                        out.json_line(snapshot)
+        async for tick in StreamService().portfolio(epics[:40], duration=duration):
+            latest[tick.epic] = (tick.bid + tick.offer) / 2
+            now = datetime.now(timezone.utc)
+            if (now - last_emit).total_seconds() >= interval:
+                snapshot = {"prices": dict(latest), "timestamp": tick.timestamp}
+                snapshots.append(snapshot)
+                last_emit = now
+                if out.json_mode:
+                    out.json_line(snapshot)
         return {"positions": len(epics), "snapshots": snapshots[-50:]}
 
     data = run(out, _do, label="stream portfolio")
@@ -240,12 +218,9 @@ def candles(
         raise typer.BadParameter("--type must be classic or heikin-ashi.")
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        await sm.ensure_logged_in()
         collected: list[dict[str, Any]] = []
         latest: dict[str, Any] = {}
         last_emit = datetime.now(timezone.utc)
-        ws = get_websocket_client()
         live = (
             None
             if out.json_mode
@@ -254,19 +229,19 @@ def candles(
         if live:
             live.__enter__()
         try:
-            async with ws:
-                await ws.subscribe_ohlc(parsed, [resolution], bar_type)
-                async for bar in ws.stream_ohlc(duration=duration):
-                    row = bar.model_dump()
-                    latest[f"{row['epic']}:{row['resolution']}"] = row
-                    now = datetime.now(timezone.utc)
-                    if (now - last_emit).total_seconds() >= interval:
-                        collected.append(row)
-                        last_emit = now
-                        if out.json_mode:
-                            out.json_line(row)
-                    if live:
-                        live.update(_candle_table(latest))
+            async for bar in StreamService().candles(
+                parsed, [resolution], bar_type=bar_type, duration=duration
+            ):
+                row = bar.model_dump()
+                latest[f"{row['epic']}:{row['resolution']}"] = row
+                now = datetime.now(timezone.utc)
+                if (now - last_emit).total_seconds() >= interval:
+                    collected.append(row)
+                    last_emit = now
+                    if out.json_mode:
+                        out.json_line(row)
+                if live:
+                    live.update(_candle_table(latest))
         finally:
             if live:
                 live.__exit__(None, None, None)

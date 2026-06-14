@@ -8,71 +8,20 @@ import typer
 
 from capital_cli.cli.live_guard import warn_if_live
 from capital_cli.cli.runner import run
-from capital_cli.core.audit import audit_mutation
-from capital_cli.core.config import get_config
-from capital_cli.core.http_client import get_client
 from capital_cli.core.models import (
     Direction,
     PreviewPositionRequest,
     PreviewWorkingOrderRequest,
     WorkingOrderType,
 )
-from capital_cli.core.risk import get_risk_engine
 from capital_cli.core.session import get_session_manager
-from capital_cli.core.utils import poll_until
+from capital_cli.services.confirmations import get_confirmation as _get_confirmation
+from capital_cli.services.confirmations import (
+    wait_for_confirmation as _wait_for_confirmation,
+)
+from capital_cli.services.trading import TradingService
 
 app = typer.Typer(no_args_is_help=True, help="Trading: positions, orders, preview, execute.")
-
-
-async def _wait_for_confirmation(
-    deal_reference: str, timeout_s: float, poll_interval_ms: int = 500
-) -> dict[str, Any]:
-    """Poll GET /confirms/{dealReference} until the broker accepts or rejects the deal.
-
-    The Capital.com API reports the broker's decision in the ``dealStatus``
-    field (ACCEPTED/REJECTED); ``status`` is the resulting position/order
-    lifecycle state (e.g. OPEN, CLOSED) and is not a useful done-condition.
-    The returned dict normalizes ``status`` to the ``dealStatus`` value so
-    callers can uniformly check ``confirmation["status"]``.
-    """
-    client = get_client()
-
-    async def check() -> dict[str, Any]:
-        return (await client.get(f"/confirms/{deal_reference}")).json()
-
-    def done(data: dict[str, Any]) -> bool:
-        return data.get("dealStatus") in ("ACCEPTED", "REJECTED")
-
-    result = await poll_until(check, done, timeout_s=timeout_s, poll_interval_ms=poll_interval_ms)
-    if result is None:
-        return {
-            "status": "TIMEOUT",
-            "message": f"Confirmation timed out after {timeout_s}s",
-        }
-    if "dealStatus" in result:
-        result = {**result, "status": result["dealStatus"]}
-    return result
-
-
-def _mutation_status(data: dict[str, Any]) -> str:
-    """Derive an audit status string from a broker mutation response.
-
-    Prefers the confirmation's normalized ``status`` (ACCEPTED/REJECTED/TIMEOUT),
-    then a top-level ``dealStatus``, then ``status``, else ``SUBMITTED``.
-    """
-    confirmation = data.get("confirmation")
-    if isinstance(confirmation, dict) and confirmation.get("status"):
-        return str(confirmation["status"])
-    if data.get("dealStatus"):
-        return str(data["dealStatus"])
-    if data.get("status"):
-        return str(data["status"])
-    return "SUBMITTED"
-
-
-def _apply_limit(rows: list[Any], limit: int | None) -> list[Any]:
-    """Return at most `limit` rows (all rows when limit is None)."""
-    return rows if limit is None else rows[:limit]
 
 
 def _parse_direction(direction: str) -> Direction:
@@ -121,12 +70,7 @@ def positions(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        data = (await client.get("/positions")).json()
-        data["positions"] = _apply_limit(data.get("positions", []), limit)
-        return data
+        return await TradingService().list_positions(limit=limit)
 
     data = run(out, _do, label="trade positions")
     if out.json_mode:
@@ -158,10 +102,7 @@ def position(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        return (await client.get(f"/positions/{deal_id}")).json()
+        return await TradingService().get_position(deal_id)
 
     out.raw(run(out, _do, label="trade position"))
 
@@ -177,12 +118,7 @@ def orders(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        data = (await client.get("/workingorders")).json()
-        data["workingOrders"] = _apply_limit(data.get("workingOrders", []), limit)
-        return data
+        return await TradingService().list_orders(limit=limit)
 
     data = run(out, _do, label="trade orders")
     if out.json_mode:
@@ -218,11 +154,10 @@ def confirm(
 
     async def _do() -> dict[str, Any]:
         sm = get_session_manager()
-        client = get_client()
         await sm.ensure_logged_in()
         if wait:
             return await _wait_for_confirmation(deal_reference, timeout_s=timeout)
-        return (await client.get(f"/confirms/{deal_reference}")).json()
+        return await _get_confirmation(deal_reference)
 
     out.record(run(out, _do, label="trade confirm"), title="Confirmation")
 
@@ -263,9 +198,6 @@ def preview_position(
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
-        sm = get_session_manager()
-        risk = get_risk_engine()
-        await sm.ensure_logged_in()
         request = PreviewPositionRequest(
             epic=epic,
             direction=direction_e,
@@ -278,7 +210,7 @@ def preview_position(
             profit_distance=profit_distance,
             auto_normalize_size=auto_normalize_size,
         )
-        return _preview_payload(await risk.preview_position(request))
+        return _preview_payload(await TradingService().preview_position(request))
 
     data = run(out, _do, label="trade preview-position")
     if out.json_mode:
@@ -329,9 +261,6 @@ def preview_order(
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
-        sm = get_session_manager()
-        risk = get_risk_engine()
-        await sm.ensure_logged_in()
         request = PreviewWorkingOrderRequest(
             epic=epic,
             direction=direction_e,
@@ -343,7 +272,7 @@ def preview_order(
             good_till_date=good_till_date,
             auto_normalize_size=auto_normalize_size,
         )
-        return _preview_payload(await risk.preview_working_order(request))
+        return _preview_payload(await TradingService().preview_working_order(request))
 
     data = run(out, _do, label="trade preview-order")
     if out.json_mode:
@@ -357,36 +286,6 @@ def preview_order(
 
 
 # ----- Execute (side effects, guarded) -----
-
-
-def _build_broker_request(
-    normalized: dict[str, Any], *, include_order_fields: bool
-) -> dict[str, Any]:
-    body: dict[str, Any] = {
-        "epic": normalized["epic"],
-        "direction": normalized["direction"],
-        "size": normalized["size"],
-    }
-    if include_order_fields:
-        body["type"] = normalized["type"]
-        body["level"] = normalized["level"]
-        if normalized.get("good_till_date"):
-            body["goodTillDate"] = normalized["good_till_date"]
-    if normalized.get("guaranteed_stop"):
-        body["guaranteedStop"] = True
-    if normalized.get("trailing_stop"):
-        body["trailingStop"] = True
-    for src, dst in [
-        ("stop_level", "stopLevel"),
-        ("stop_distance", "stopDistance"),
-        ("stop_amount", "stopAmount"),
-        ("profit_level", "profitLevel"),
-        ("profit_distance", "profitDistance"),
-        ("profit_amount", "profitAmount"),
-    ]:
-        if normalized.get(src) is not None:
-            body[dst] = normalized[src]
-    return body
 
 
 @app.command(
@@ -412,34 +311,9 @@ def execute_position(
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
-        sm = get_session_manager()
-        client = get_client()
-        risk = get_risk_engine()
-        await sm.ensure_logged_in()
-        risk.validate_execution_guards(confirm=yes, preview_id=preview_id)
-        # Enforce the max-open-positions safety limit (engine makes no HTTP calls).
-        open_positions = (await client.get("/positions")).json().get("positions", [])
-        risk.check_open_position_limit(len(open_positions))
-        normalized = risk.get_preview(preview_id).normalized_request
-        body = _build_broker_request(normalized, include_order_fields=False)
-        data = (await client.post("/positions", json=body, rate_limit_type="trading")).json()
-        risk.increment_order_count()
-        if wait and "dealReference" in data:
-            data["confirmation"] = await _wait_for_confirmation(
-                data["dealReference"], timeout_s=timeout
-            )
-        data["active_account_id"] = sm.account_id
-        audit_mutation(
-            command="execute-position",
-            env=get_config().cap_env.value,
-            account=sm.account_id,
-            epic=normalized.get("epic"),
-            size=normalized.get("size"),
-            preview_id=preview_id,
-            deal_reference=data.get("dealReference"),
-            status=_mutation_status(data),
+        return await TradingService().execute_position(
+            preview_id, confirm=yes, wait=wait, timeout_s=timeout
         )
-        return data
 
     out.record(run(out, _do, label="trade execute-position"), title="Execute position")
 
@@ -466,31 +340,9 @@ def execute_order(
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
-        sm = get_session_manager()
-        client = get_client()
-        risk = get_risk_engine()
-        await sm.ensure_logged_in()
-        risk.validate_execution_guards(confirm=yes, preview_id=preview_id)
-        normalized = risk.get_preview(preview_id).normalized_request
-        body = _build_broker_request(normalized, include_order_fields=True)
-        data = (await client.post("/workingorders", json=body, rate_limit_type="trading")).json()
-        risk.increment_order_count()
-        if wait and "dealReference" in data:
-            data["confirmation"] = await _wait_for_confirmation(
-                data["dealReference"], timeout_s=timeout
-            )
-        data["active_account_id"] = sm.account_id
-        audit_mutation(
-            command="execute-order",
-            env=get_config().cap_env.value,
-            account=sm.account_id,
-            epic=normalized.get("epic"),
-            size=normalized.get("size"),
-            preview_id=preview_id,
-            deal_reference=data.get("dealReference"),
-            status=_mutation_status(data),
+        return await TradingService().execute_working_order(
+            preview_id, confirm=yes, wait=wait, timeout_s=timeout
         )
-        return data
 
     out.record(run(out, _do, label="trade execute-order"), title="Execute order")
 
@@ -514,25 +366,9 @@ def close(
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
-        sm = get_session_manager()
-        client = get_client()
-        risk = get_risk_engine()
-        await sm.ensure_logged_in()
-        risk.validate_execution_guards(confirm=yes)
-        data = (await client.delete(f"/positions/{deal_id}")).json()
-        if wait and "dealReference" in data:
-            data["confirmation"] = await _wait_for_confirmation(
-                data["dealReference"], timeout_s=timeout
-            )
-        data["active_account_id"] = sm.account_id
-        audit_mutation(
-            command="close",
-            env=get_config().cap_env.value,
-            account=sm.account_id,
-            deal_reference=data.get("dealReference"),
-            status=_mutation_status(data),
+        return await TradingService().close_position(
+            deal_id, confirm=yes, wait=wait, timeout_s=timeout
         )
-        return data
 
     out.record(run(out, _do, label="trade close"), title="Close position")
 
@@ -550,25 +386,9 @@ def cancel(
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
-        sm = get_session_manager()
-        client = get_client()
-        risk = get_risk_engine()
-        await sm.ensure_logged_in()
-        risk.validate_execution_guards(confirm=yes)
-        data = (await client.delete(f"/workingorders/{deal_id}")).json()
-        if wait and "dealReference" in data:
-            data["confirmation"] = await _wait_for_confirmation(
-                data["dealReference"], timeout_s=timeout
-            )
-        data["active_account_id"] = sm.account_id
-        audit_mutation(
-            command="cancel",
-            env=get_config().cap_env.value,
-            account=sm.account_id,
-            deal_reference=data.get("dealReference"),
-            status=_mutation_status(data),
+        return await TradingService().cancel_order(
+            deal_id, confirm=yes, wait=wait, timeout_s=timeout
         )
-        return data
 
     out.record(run(out, _do, label="trade cancel"), title="Cancel order")
 
@@ -611,25 +431,9 @@ def amend_position(
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
-        sm = get_session_manager()
-        client = get_client()
-        risk = get_risk_engine()
-        await sm.ensure_logged_in()
-        risk.validate_execution_guards(confirm=yes)
-        data = (await client.put(f"/positions/{deal_id}", json=body)).json()
-        if wait and "dealReference" in data:
-            data["confirmation"] = await _wait_for_confirmation(
-                data["dealReference"], timeout_s=timeout
-            )
-        data["active_account_id"] = sm.account_id
-        audit_mutation(
-            command="amend-position",
-            env=get_config().cap_env.value,
-            account=sm.account_id,
-            deal_reference=data.get("dealReference"),
-            status=_mutation_status(data),
+        return await TradingService().amend_position(
+            deal_id, body=body, confirm=yes, wait=wait, timeout_s=timeout
         )
-        return data
 
     out.record(run(out, _do, label="trade amend-position"), title="Amend position")
 
@@ -670,24 +474,8 @@ def amend_order(
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
-        sm = get_session_manager()
-        client = get_client()
-        risk = get_risk_engine()
-        await sm.ensure_logged_in()
-        risk.validate_execution_guards(confirm=yes)
-        data = (await client.put(f"/workingorders/{deal_id}", json=body)).json()
-        if wait and "dealReference" in data:
-            data["confirmation"] = await _wait_for_confirmation(
-                data["dealReference"], timeout_s=timeout
-            )
-        data["active_account_id"] = sm.account_id
-        audit_mutation(
-            command="amend-order",
-            env=get_config().cap_env.value,
-            account=sm.account_id,
-            deal_reference=data.get("dealReference"),
-            status=_mutation_status(data),
+        return await TradingService().amend_order(
+            deal_id, body=body, confirm=yes, wait=wait, timeout_s=timeout
         )
-        return data
 
     out.record(run(out, _do, label="trade amend-order"), title="Amend order")

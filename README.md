@@ -37,11 +37,13 @@ The Capital.com web platform is built for clicking; `capctl` is built for **repe
 
 See [practical use cases](docs/use-cases.md) for worked, copy-pasteable scenarios.
 
-**Scope:** `capctl` is a command-line application, not a stable Python SDK — the
-internal `capital_cli.*` modules may change between releases without notice. It is
-also short-lived: each command runs as its own process and may create its own API
-session. `capctl session login` is mainly a connectivity/account check; session
-tokens are not persisted between separate invocations.
+**Scope:** `capctl` is first and foremost a command-line application, but the same
+tested broker engine is also embeddable as an **experimental** Python SDK — see
+[Use as a library](#use-as-a-library-experimental) and [docs/sdk.md](docs/sdk.md).
+The `capital_cli.core.*` internals remain private and may change between releases.
+The CLI itself is short-lived: each command runs as its own process and may create
+its own API session. `capctl session login` is mainly a connectivity/account check;
+session tokens are not persisted between separate invocations.
 
 ## Features
 
@@ -359,6 +361,33 @@ capctl stream alerts BTCUSD 75000 --direction ABOVE --duration 3600
 */15 * * * * capctl --json trade positions >> ~/logs/positions.jsonl 2>&1
 ```
 
+## Use as a library (experimental)
+
+Beyond the CLI, the same broker engine — risk policy, two-phase preview→execute,
+rate limiting, WebSocket streaming — is available as an embeddable async SDK.
+**CLI** = terminal, scripts, CI; **SDK** = embed the tested engine in your own
+Python (MCP servers, dashboards, n8n nodes).
+
+```python
+from capital_cli.sdk import CapitalComApp, CapitalComConfig, RiskPolicy
+```
+
+```python
+import asyncio
+from capital_cli.sdk import CapitalComApp
+
+async def main():
+    async with CapitalComApp() as app:
+        gold = await app.markets.get("GOLD")
+        print(gold["snapshot"]["bid"])
+
+asyncio.run(main())
+```
+
+The SDK is **experimental** until 1.0: import paths and the pydantic models are
+intended-stable but may shift between 0.x minors. See [docs/sdk.md](docs/sdk.md)
+for read-only, preview→execute, streaming, and risk-policy examples.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -424,6 +453,7 @@ Or use the task runner: `make check` (lint + typecheck + test), `make docs`, `ma
 ## Documentation
 
 - [Full CLI reference](docs/CLI.md) — every command and option (auto-generated)
+- [Using capctl as a Python SDK](docs/sdk.md) — experimental async SDK, import paths, examples, versioning
 - [Scripting & automation](docs/scripting.md) — CI credentials, exit codes, jq recipes
 - [Getting started from zero](docs/getting-started.md) — account, API key, install, first trade
 - [Practical use cases](docs/use-cases.md) — what people actually do with capctl, with copy-pasteable scenarios

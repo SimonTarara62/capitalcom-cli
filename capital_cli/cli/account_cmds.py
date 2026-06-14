@@ -7,11 +7,7 @@ from typing import Any
 import typer
 
 from capital_cli.cli.runner import run
-from capital_cli.core.config import get_config
-from capital_cli.core.errors import ConfirmRequiredError
-from capital_cli.core.http_client import get_client
-from capital_cli.core.risk import get_risk_engine
-from capital_cli.core.session import get_session_manager
+from capital_cli.services.accounts import AccountService
 
 app = typer.Typer(no_args_is_help=True, help="Accounts: list, preferences, history.")
 
@@ -22,12 +18,7 @@ def list_accounts(ctx: typer.Context) -> None:
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        data = (await client.get("/accounts")).json()
-        data["active_account_id"] = sm.account_id
-        return data
+        return await AccountService().list()
 
     data = run(out, _do, label="account list")
     if out.json_mode:
@@ -56,10 +47,7 @@ def prefs_get(ctx: typer.Context) -> None:
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        return (await client.get("/accounts/preferences")).json()
+        return await AccountService().get_preferences()
 
     out.record(run(out, _do, label="account prefs-get"), title="Account preferences")
 
@@ -93,17 +81,9 @@ def prefs_set(
         raise typer.BadParameter("Provide --hedging/--no-hedging and/or --leverage.")
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        risk = get_risk_engine()
-        await sm.ensure_logged_in()
-        risk.validate_mutation_guards(confirm=yes)
-        body: dict[str, Any] = {}
-        if hedging is not None:
-            body["hedgingMode"] = hedging
-        if leverages:
-            body["leverages"] = leverages
-        return (await client.put("/accounts/preferences", json=body)).json()
+        return await AccountService().set_preferences(
+            hedging=hedging, leverages=leverages, confirm=yes
+        )
 
     out.record(run(out, _do, label="account prefs-set"), title="Updated preferences")
 
@@ -121,19 +101,13 @@ def history_activity(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        params: dict[str, Any] = {"lastPeriod": last_period}
-        if from_date:
-            params["from"] = from_date
-        if to_date:
-            params["to"] = to_date
-        if detailed:
-            params["detailed"] = "true"
-        if deal_id:
-            params["dealId"] = deal_id
-        return (await client.get("/history/activity", params=params)).json()
+        return await AccountService().history_activity(
+            last_period=last_period,
+            from_date=from_date,
+            to_date=to_date,
+            detailed=detailed,
+            deal_id=deal_id,
+        )
 
     out.raw(run(out, _do, label="account history-activity"))
 
@@ -150,17 +124,9 @@ def history_transactions(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        params: dict[str, Any] = {"lastPeriod": last_period}
-        if type_:
-            params["type"] = type_
-        if from_date:
-            params["from"] = from_date
-        if to_date:
-            params["to"] = to_date
-        return (await client.get("/history/transactions", params=params)).json()
+        return await AccountService().history_transactions(
+            last_period=last_period, type_=type_, from_date=from_date, to_date=to_date
+        )
 
     out.raw(run(out, _do, label="account history-transactions"))
 
@@ -175,14 +141,6 @@ def topup(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        config = get_config()
-        if config.cap_env.value != "demo":
-            raise typer.BadParameter("Demo top-up is only available with --demo / CAP_ENV=demo.")
-        if config.cap_require_explicit_confirm and not yes:
-            raise ConfirmRequiredError()
-        await sm.ensure_logged_in()
-        return (await client.post("/accounts/topUp", json={"amount": amount})).json()
+        return await AccountService().demo_topup(amount, confirm=yes)
 
     out.record(run(out, _do, label="account topup"), title="Demo top-up")
