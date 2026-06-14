@@ -7,7 +7,6 @@ from typing import Any
 import typer
 
 from capital_cli.cli.runner import run
-from capital_cli.core.http_client import get_client
 from capital_cli.core.session import get_session_manager
 
 app = typer.Typer(no_args_is_help=True, help="Session lifecycle: login, ping, logout.")
@@ -98,9 +97,7 @@ def time(ctx: typer.Context) -> None:
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        client = get_client()
-        data = (await client.get("/time")).json()
-        return data if isinstance(data, dict) else {"serverTime": data}
+        return await get_session_manager().server_time()
 
     out.record(run(out, _do, label="session time"), title="Server time")
 
@@ -111,10 +108,7 @@ def details(ctx: typer.Context) -> None:
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        return (await client.get("/session")).json()
+        return await get_session_manager().details()
 
     out.record(run(out, _do, label="session details"), title="Session details")
 
@@ -125,7 +119,6 @@ def encryption_key(ctx: typer.Context) -> None:
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        client = get_client()
-        return (await client.get("/session/encryptionKey")).json()
+        return await get_session_manager().encryption_key()
 
     out.record(run(out, _do, label="session encryption-key"), title="Encryption key")
