@@ -130,6 +130,9 @@ All settings (one `CAP_*` variable each) and their defaults:
 | `CAP_API_KEY` | — | API key (required) |
 | `CAP_IDENTIFIER` | — | Login email (required) |
 | `CAP_API_PASSWORD` | — | API-key custom password (required) |
+| `CAP_API_KEY_CMD` | (none) | Command whose stdout supplies `CAP_API_KEY` (see below) |
+| `CAP_IDENTIFIER_CMD` | (none) | Command whose stdout supplies `CAP_IDENTIFIER` |
+| `CAP_API_PASSWORD_CMD` | (none) | Command whose stdout supplies `CAP_API_PASSWORD` |
 | `CAP_ALLOW_TRADING` | `false` | Master switch for all trade execution |
 | `CAP_ALLOWED_EPICS` | (empty) | Comma-separated allowlist, or `ALL` |
 | `CAP_MAX_POSITION_SIZE` | `1.0` | Per-trade size ceiling |
@@ -142,6 +145,25 @@ All settings (one `CAP_*` variable each) and their defaults:
 | `CAP_HTTP_TIMEOUT_S` | `15` | HTTP timeout |
 | `CAP_LOG_LEVEL` | `WARNING` | `DEBUG` … `CRITICAL` |
 | `CAP_WS_ENABLED` | `false` | Required for `capctl stream …` |
+
+### Credential-exec helpers (`CAP_*_CMD`)
+
+To keep secrets out of plaintext files, source each credential from a command at
+runtime — the AWS `credential_process` / git-credential-helper pattern. Set
+`CAP_API_KEY_CMD`, `CAP_IDENTIFIER_CMD`, and/or `CAP_API_PASSWORD_CMD` to a
+command line; its trimmed stdout becomes the corresponding secret.
+
+```bash
+export CAP_API_PASSWORD_CMD="op read op://Private/capital/api-password"
+export CAP_API_KEY_CMD="pass capital/api-key"
+```
+
+Precedence (highest first): an explicit `CAP_<FIELD>` env var, then the
+`CAP_<FIELD>_CMD` output, then the value in your `.env` file. Commands run with
+`shell=False`, a 10-second timeout, and a non-zero exit / timeout / empty output
+raises a clear configuration error (exit 3). The resolved secret is never logged
+and the command's stdout/stderr is never echoed in error messages. This is
+at-rest hygiene; see [SECURITY.md](SECURITY.md) for the threat model.
 
 Trade previews and the daily order counter persist between commands in
 `~/.config/capital-cli/state.json` (override with `CAPCTL_STATE_FILE`).
