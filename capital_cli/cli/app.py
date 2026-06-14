@@ -6,7 +6,6 @@ import json as _json
 import sys
 from pathlib import Path
 
-import click
 import typer
 
 from capital_cli import __version__
@@ -25,6 +24,10 @@ app = typer.Typer(
     add_completion=True,
     help="capctl — command-line client for the Capital.com Open API.",
     rich_markup_mode="rich",
+    # Disable Typer's pretty-exceptions wrapper so Click UsageErrors propagate to
+    # run_cli() (which renders them as structured JSON under --json). Otherwise
+    # newer Typer intercepts and renders them as a Rich traceback + exit 1.
+    pretty_exceptions_enable=False,
 )
 
 
@@ -106,33 +109,51 @@ def _hoist_global_flags(argv: list[str]) -> list[str]:
 
 
 def run_cli() -> None:
-    """Console-script entry point. Renders Click usage errors as JSON when --json is set."""
+    """Console-script entry point. Renders Click usage errors as JSON when --json is set.
+
+    Exceptions are matched by duck typing rather than by ``click.exceptions.*``
+    classes: newer Typer (>=0.26) vendors its own copy of click as
+    ``typer._click``, so the raised ``UsageError`` is *not* an instance of the
+    installed ``click``'s ``UsageError``. All click usage errors expose
+    ``format_message()`` and ``exit_code``; ``Abort`` is identified by name.
+    """
     sys.argv = _hoist_global_flags(sys.argv)
     json_mode = "--json" in sys.argv
     try:
         result = app(standalone_mode=False)
-    except click.exceptions.UsageError as exc:
-        if json_mode:
-            sys.stderr.write(
-                _json.dumps(
-                    {
-                        "ok": False,
-                        "error": {
-                            "code": "INVALID_REQUEST",
-                            "message": exc.format_message(),
-                        },
-                    }
+    except SystemExit:
+        raise
+    except BaseException as exc:  # noqa: BLE001 - top-level CLI guard, re-raises below
+        if type(exc).__name__ == "Abort":
+            sys.exit(130)
+        # click/typer UsageError family: has format_message() (+ exit_code, usually 2)
+        if hasattr(exc, "format_message"):
+            code = getattr(exc, "exit_code", 2) or 2
+            if json_mode:
+                sys.stderr.write(
+                    _json.dumps(
+                        {
+                            "ok": False,
+                            "error": {
+                                "code": "INVALID_REQUEST",
+                                "message": exc.format_message(),
+                            },
+                        }
+                    )
+                    + "\n"
                 )
-                + "\n"
-            )
-        else:
-            exc.show()  # default Click rendering to stderr
-        sys.exit(2)
-    except click.exceptions.Abort:
-        sys.exit(130)
-    except (click.exceptions.Exit, SystemExit) as exc:
-        code = getattr(exc, "exit_code", getattr(exc, "code", 0)) or 0
-        sys.exit(code)
+            else:
+                show = getattr(exc, "show", None)
+                if callable(show):
+                    show()  # default Click rendering to stderr
+                else:
+                    sys.stderr.write(f"Error: {exc.format_message()}\n")
+            sys.exit(code)
+        # plain Exit (no message): propagate its exit code
+        exit_code = getattr(exc, "exit_code", None)
+        if exit_code is not None:
+            sys.exit(exit_code or 0)
+        raise
     # standalone_mode=False makes Typer/Click *return* the command's exit code
     # (from typer.Exit raised inside run()) instead of sys.exit-ing. Propagate it.
     if isinstance(result, int):
