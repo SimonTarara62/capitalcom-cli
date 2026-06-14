@@ -17,8 +17,12 @@ app = typer.Typer(no_args_is_help=True, help="Session lifecycle: login, ping, lo
 def status(ctx: typer.Context) -> None:
     """Show current session status (no network call)."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    out.record(sm.get_status().model_dump(), title="Session status")
+
+    async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        return sm.get_status().model_dump()
+
+    out.record(run(out, _do, label="session status"), title="Session status")
 
 
 @app.command()
@@ -31,9 +35,9 @@ def login(
 ) -> None:
     """Create (or verify) a session and store auth tokens."""
     out = ctx.obj.out
-    sm = get_session_manager()
 
     async def _do():
+        sm = get_session_manager()
         data = await sm.login(force=force, account_id=account)
         data["active_account_id"] = sm.account_id
         return data
@@ -49,9 +53,9 @@ def login(
 def ping(ctx: typer.Context) -> None:
     """Keep the session alive."""
     out = ctx.obj.out
-    sm = get_session_manager()
 
     async def _do():
+        sm = get_session_manager()
         await sm.ensure_logged_in()
         return await sm.ping()
 
@@ -62,9 +66,9 @@ def ping(ctx: typer.Context) -> None:
 def logout(ctx: typer.Context) -> None:
     """End the session and clear tokens."""
     out = ctx.obj.out
-    sm = get_session_manager()
 
     async def _do():
+        sm = get_session_manager()
         await sm.logout()
         return {"status": "logged out"}
 
@@ -77,9 +81,9 @@ def switch(
 ) -> None:
     """Switch the active account."""
     out = ctx.obj.out
-    sm = get_session_manager()
 
     async def _do():
+        sm = get_session_manager()
         await sm.ensure_logged_in()
         data = await sm.switch_account(account_id)
         data["active_account_id"] = sm.account_id
@@ -92,9 +96,9 @@ def switch(
 def time(ctx: typer.Context) -> None:
     """Show the broker's current server time (no authentication required)."""
     out = ctx.obj.out
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        client = get_client()
         data = (await client.get("/time")).json()
         return data if isinstance(data, dict) else {"serverTime": data}
 
@@ -105,10 +109,10 @@ def time(ctx: typer.Context) -> None:
 def details(ctx: typer.Context) -> None:
     """Show server-side session details (client id, account id, currency, timezone)."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         return (await client.get("/session")).json()
 
@@ -119,9 +123,9 @@ def details(ctx: typer.Context) -> None:
 def encryption_key(ctx: typer.Context) -> None:
     """Fetch the API encryption key and timestamp (used for encrypted-password login)."""
     out = ctx.obj.out
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        client = get_client()
         return (await client.get("/session/encryptionKey")).json()
 
     out.record(run(out, _do, label="session encryption-key"), title="Encryption key")

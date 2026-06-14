@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from collections.abc import Sequence
 from typing import Any
 
@@ -104,8 +105,12 @@ class Output:
 
     def error(self, code: str, message: str) -> None:
         if self.json_mode:
-            self.err.print_json(
-                json.dumps({"ok": False, "error": {"code": code, "message": message}})
+            # Compact, single-line JSON so an agent can `json.loads` the last
+            # stderr line regardless of any preceding log output.
+            print(
+                json.dumps({"ok": False, "error": {"code": code, "message": message}}),
+                file=sys.stderr,
+                flush=True,
             )
         else:
             self.err.print(f"[bold red]Error[/] [dim]({code})[/]: {message}")

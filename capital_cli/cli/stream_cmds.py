@@ -65,9 +65,9 @@ def prices(
     """Stream live bid/offer prices."""
     out = ctx.obj.out
     parsed = _parse_epics(epics)
-    sm = get_session_manager()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
         await sm.ensure_logged_in()
         collected: list[dict[str, Any]] = []
         latest: dict[str, Any] = {}
@@ -122,12 +122,12 @@ def alerts(
 ) -> None:
     """Trigger an alert when a market crosses a price level."""
     out = ctx.obj.out
-    sm = get_session_manager()
     direction_u = direction.upper()
     if direction_u not in ("ABOVE", "BELOW"):
         raise typer.BadParameter("--direction must be ABOVE or BELOW.")
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
         await sm.ensure_logged_in()
         triggered: list[dict[str, Any]] = []
         ws = get_websocket_client()
@@ -168,10 +168,10 @@ def portfolio(
 ) -> None:
     """Stream live price snapshots for currently open positions."""
     out = ctx.obj.out
-    sm = get_session_manager()
     from capital_cli.core.http_client import get_client
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
         await sm.ensure_logged_in()
         client = get_client()
         positions = (await client.get("/positions")).json().get("positions", [])
@@ -217,9 +217,9 @@ def candles(
     parsed = _parse_epics(epics)
     if bar_type not in ("classic", "heikin-ashi"):
         raise typer.BadParameter("--type must be classic or heikin-ashi.")
-    sm = get_session_manager()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
         await sm.ensure_logged_in()
         collected: list[dict[str, Any]] = []
         latest: dict[str, Any] = {}

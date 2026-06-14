@@ -24,10 +24,10 @@ def _require_confirm(yes: bool) -> None:
 def list_watchlists(ctx: typer.Context) -> None:
     """List all watchlists."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         return (await client.get("/watchlists")).json()
 
@@ -42,10 +42,10 @@ def list_watchlists(ctx: typer.Context) -> None:
 def get(ctx: typer.Context, watchlist_id: str = typer.Argument(..., help="Watchlist ID.")) -> None:
     """Get a watchlist and its markets."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         return (await client.get(f"/watchlists/{watchlist_id}")).json()
 
@@ -60,10 +60,10 @@ def create(
 ) -> None:
     """Create a new watchlist."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         _require_confirm(yes)
         await sm.ensure_logged_in()
         return (await client.post("/watchlists", json={"name": name})).json()
@@ -80,10 +80,10 @@ def add(
 ) -> None:
     """Add a market to a watchlist."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         _require_confirm(yes)
         await sm.ensure_logged_in()
         return (await client.put(f"/watchlists/{watchlist_id}", json={"epic": epic})).json()
@@ -100,10 +100,10 @@ def remove(
 ) -> None:
     """Remove a market from a watchlist."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         _require_confirm(yes)
         await sm.ensure_logged_in()
         resp = await client.delete(f"/watchlists/{watchlist_id}/{epic}")
@@ -120,10 +120,10 @@ def delete(
 ) -> None:
     """Delete a watchlist."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         _require_confirm(yes)
         await sm.ensure_logged_in()
         resp = await client.delete(f"/watchlists/{watchlist_id}")

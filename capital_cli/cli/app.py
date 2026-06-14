@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json as _json
+import sys
 from pathlib import Path
 
 import typer
@@ -22,12 +24,19 @@ app = typer.Typer(
     add_completion=True,
     help="capctl — command-line client for the Capital.com Open API.",
     rich_markup_mode="rich",
+    # Disable Typer's pretty-exceptions wrapper so Click UsageErrors propagate to
+    # run_cli() (which renders them as structured JSON under --json). Otherwise
+    # newer Typer intercepts and renders them as a Rich traceback + exit 1.
+    pretty_exceptions_enable=False,
 )
 
 
 def _version_callback(value: bool) -> None:
     if value:
-        typer.echo(f"capctl {__version__}")
+        if "--json" in sys.argv:
+            typer.echo(_json.dumps({"name": "capctl", "version": __version__}))
+        else:
+            typer.echo(f"capctl {__version__}")
         raise typer.Exit()
 
 
@@ -83,6 +92,69 @@ app.add_typer(watchlist_cmds.app, name="watchlist")
 app.add_typer(stream_cmds.app, name="stream")
 
 
+_GLOBAL_FLAGS = {"--json", "--plain", "--no-color"}
+
+
+def _hoist_global_flags(argv: list[str]) -> list[str]:
+    """Move boolean global flags (e.g. trailing --json) ahead of the subcommand
+    so `capctl session status --json` works like `capctl --json session status`."""
+    if len(argv) < 2:
+        return argv
+    prog, rest = argv[0], argv[1:]
+    hoisted = [a for a in rest if a in _GLOBAL_FLAGS]
+    if not hoisted:
+        return argv
+    remaining = [a for a in rest if a not in _GLOBAL_FLAGS]
+    return [prog, *hoisted, *remaining]
+
+
 def run_cli() -> None:
-    """Console-script entry point (see pyproject [project.scripts])."""
-    app()
+    """Console-script entry point. Renders Click usage errors as JSON when --json is set.
+
+    Exceptions are matched by duck typing rather than by ``click.exceptions.*``
+    classes: newer Typer (>=0.26) vendors its own copy of click as
+    ``typer._click``, so the raised ``UsageError`` is *not* an instance of the
+    installed ``click``'s ``UsageError``. All click usage errors expose
+    ``format_message()`` and ``exit_code``; ``Abort`` is identified by name.
+    """
+    sys.argv = _hoist_global_flags(sys.argv)
+    json_mode = "--json" in sys.argv
+    try:
+        result = app(standalone_mode=False)
+    except SystemExit:
+        raise
+    except BaseException as exc:  # noqa: BLE001 - top-level CLI guard, re-raises below
+        if type(exc).__name__ == "Abort":
+            sys.exit(130)
+        # click/typer UsageError family: has format_message() (+ exit_code, usually 2)
+        if hasattr(exc, "format_message"):
+            code = getattr(exc, "exit_code", 2) or 2
+            if json_mode:
+                sys.stderr.write(
+                    _json.dumps(
+                        {
+                            "ok": False,
+                            "error": {
+                                "code": "INVALID_REQUEST",
+                                "message": exc.format_message(),
+                            },
+                        }
+                    )
+                    + "\n"
+                )
+            else:
+                show = getattr(exc, "show", None)
+                if callable(show):
+                    show()  # default Click rendering to stderr
+                else:
+                    sys.stderr.write(f"Error: {exc.format_message()}\n")
+            sys.exit(code)
+        # plain Exit (no message): propagate its exit code
+        exit_code = getattr(exc, "exit_code", None)
+        if exit_code is not None:
+            sys.exit(exit_code or 0)
+        raise
+    # standalone_mode=False makes Typer/Click *return* the command's exit code
+    # (from typer.Exit raised inside run()) instead of sys.exit-ing. Propagate it.
+    if isinstance(result, int):
+        sys.exit(result)

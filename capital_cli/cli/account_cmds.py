@@ -20,10 +20,10 @@ app = typer.Typer(no_args_is_help=True, help="Accounts: list, preferences, histo
 def list_accounts(ctx: typer.Context) -> None:
     """List all trading accounts."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         data = (await client.get("/accounts")).json()
         data["active_account_id"] = sm.account_id
@@ -54,10 +54,10 @@ def list_accounts(ctx: typer.Context) -> None:
 def prefs_get(ctx: typer.Context) -> None:
     """Get account preferences (hedging, leverage)."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         return (await client.get("/accounts/preferences")).json()
 
@@ -92,11 +92,10 @@ def prefs_set(
     if hedging is None and not leverages:
         raise typer.BadParameter("Provide --hedging/--no-hedging and/or --leverage.")
 
-    sm = get_session_manager()
-    client = get_client()
-    risk = get_risk_engine()
-
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
+        risk = get_risk_engine()
         await sm.ensure_logged_in()
         risk.validate_mutation_guards(confirm=yes)
         body: dict[str, Any] = {}
@@ -120,10 +119,10 @@ def history_activity(
 ) -> None:
     """Get account activity history."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         params: dict[str, Any] = {"lastPeriod": last_period}
         if from_date:
@@ -149,10 +148,10 @@ def history_transactions(
 ) -> None:
     """Get transaction history."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         params: dict[str, Any] = {"lastPeriod": last_period}
         if type_:
@@ -174,11 +173,11 @@ def topup(
 ) -> None:
     """Top up the demo account balance (demo environment only)."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
-    config = get_config()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
+        config = get_config()
         if config.cap_env.value != "demo":
             raise typer.BadParameter("Demo top-up is only available with --demo / CAP_ENV=demo.")
         if config.cap_require_explicit_confirm and not yes:
