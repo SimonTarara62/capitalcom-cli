@@ -67,6 +67,11 @@ pydantic-settings · websockets ≥12.
   keys + the safety layer. See [SECURITY.md](SECURITY.md#using-capctl-with-ai-agents--llms).
 - Trade execution is two-phase: always `trade preview-*` before
   `trade execute-*`. Never add a path that executes without a valid preview.
+- **A `{"status": "TIMEOUT"}` confirmation is ambiguous** — the order may have
+  landed. There is no broker idempotency key, so never blindly re-run
+  `execute-*`/`close`/`cancel`/`amend-*` on TIMEOUT. Reconcile first via
+  `trade positions` / `trade orders`, then retry only if the order is absent.
+  See [docs/scripting.md](docs/scripting.md#safe-retries--ambiguous-confirmations).
 - Do not weaken the risk engine (`core/risk.py`) or the trade-size validation to
   make a test pass.
 
