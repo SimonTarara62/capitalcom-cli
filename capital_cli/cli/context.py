@@ -8,6 +8,11 @@ from pathlib import Path
 
 from capital_cli.cli.output import Output
 from capital_cli.core.config import reset_config
+from capital_cli.core.http_client import reset_client
+from capital_cli.core.rate_limit import reset_rate_limiter
+from capital_cli.core.risk import reset_risk_engine
+from capital_cli.core.session import reset_session_manager
+from capital_cli.core.state import reset_state_store
 
 
 @dataclass
@@ -41,5 +46,12 @@ def init_state(
         os.environ["CAP_DEFAULT_ACCOUNT_ID"] = account
     if verbose:
         os.environ["CAP_LOG_LEVEL"] = "DEBUG"
+    # Reset config AND every singleton that captured the old config, so global
+    # overrides (e.g. switching --demo -> --live) take effect on the next call.
     reset_config()
+    reset_client()
+    reset_session_manager()
+    reset_risk_engine()
+    reset_rate_limiter()
+    reset_state_store()
     return AppState(out=Output(json_mode=json_mode, no_color=no_color or None, plain=plain))
