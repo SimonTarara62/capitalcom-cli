@@ -32,14 +32,14 @@ class _FakeWS:
 def mock_stream(monkeypatch):
     sm = MagicMock()
     sm.ensure_logged_in = AsyncMock()
-    monkeypatch.setattr("capital_cli.cli.stream_cmds.get_session_manager", lambda: sm)
+    monkeypatch.setattr("capital_cli.services.streaming.get_session_manager", lambda: sm)
 
     ticks = [
         PriceTick(epic="GOLD", bid=2000.0, offer=2001.0, timestamp="2026-06-12T00:00:00Z"),
         PriceTick(epic="GOLD", bid=2002.0, offer=2003.0, timestamp="2026-06-12T00:00:01Z"),
     ]
     fake = _FakeWS(ticks)
-    monkeypatch.setattr("capital_cli.cli.stream_cmds.get_websocket_client", lambda: fake)
+    monkeypatch.setattr("capital_cli.services.streaming.get_websocket_client", lambda: fake)
     return fake
 
 
@@ -89,7 +89,7 @@ def mock_ohlc_stream(monkeypatch):
 
     sm = MagicMock()
     sm.ensure_logged_in = AsyncMock()
-    monkeypatch.setattr("capital_cli.cli.stream_cmds.get_session_manager", lambda: sm)
+    monkeypatch.setattr("capital_cli.services.streaming.get_session_manager", lambda: sm)
 
     bars = [
         OHLCBar(
@@ -105,7 +105,7 @@ def mock_ohlc_stream(monkeypatch):
         )
     ]
     fake = _FakeOHLCWS(bars)
-    monkeypatch.setattr("capital_cli.cli.stream_cmds.get_websocket_client", lambda: fake)
+    monkeypatch.setattr("capital_cli.services.streaming.get_websocket_client", lambda: fake)
     return fake
 
 
@@ -132,7 +132,7 @@ def test_stream_candles_rejects_bad_type(runner, mock_ohlc_stream):
 def mock_stream_three(monkeypatch):
     sm = MagicMock()
     sm.ensure_logged_in = AsyncMock()
-    monkeypatch.setattr("capital_cli.cli.stream_cmds.get_session_manager", lambda: sm)
+    monkeypatch.setattr("capital_cli.services.streaming.get_session_manager", lambda: sm)
 
     ticks = [
         PriceTick(epic="GOLD", bid=2000.0, offer=2001.0, timestamp="2026-06-12T00:00:00Z"),
@@ -140,7 +140,7 @@ def mock_stream_three(monkeypatch):
         PriceTick(epic="GOLD", bid=2004.0, offer=2005.0, timestamp="2026-06-12T00:00:02Z"),
     ]
     fake = _FakeWS(ticks)
-    monkeypatch.setattr("capital_cli.cli.stream_cmds.get_websocket_client", lambda: fake)
+    monkeypatch.setattr("capital_cli.services.streaming.get_websocket_client", lambda: fake)
     return fake
 
 

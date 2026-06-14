@@ -7,7 +7,14 @@ and the SDK facade (capital_cli.sdk) both build on them.
 
 from .accounts import AccountService
 from .markets import MarketService
+from .streaming import StreamService
 from .trading import TradingService
 from .watchlists import WatchlistService
 
-__all__ = ["AccountService", "MarketService", "TradingService", "WatchlistService"]
+__all__ = [
+    "AccountService",
+    "MarketService",
+    "StreamService",
+    "TradingService",
+    "WatchlistService",
+]
