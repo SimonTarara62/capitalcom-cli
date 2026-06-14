@@ -46,11 +46,8 @@ def test_cli_bad_identifier_is_rejected(endpoint_id):
     # but never a crash (exit 1) or success-with-data masquerade.
     assert res.code in (0, 7), f"{endpoint_id}: exit {res.code}\n{res.stderr}"
     if res.code == 7:
-        body = res.json()
-        assert body.get("error", {}).get("code") in {
-            "UPSTREAM_ERROR",
-            "BROKER_REJECTED",
-        }, body
+        # The error object is written to STDERR under --json (data->stdout).
+        assert res.error_code() in {"UPSTREAM_ERROR", "BROKER_REJECTED"}, res.stderr
 
 
 # endpoint id -> CLI args that are syntactically/semantically invalid (exit 2).
@@ -102,12 +99,12 @@ def test_cli_guard_blocks_mutation(endpoint_id):
     args, overrides = GUARD_CASES[endpoint_id]
     res = run_cli(*args, env_overrides=overrides)
     assert res.code == 4, f"{endpoint_id}: expected guard exit 4, got {res.code}\n{res.stderr}"
-    body = res.json()
-    assert body.get("error", {}).get("code") in {
+    # The guard error is written to STDERR under --json (data->stdout).
+    assert res.error_code() in {
         "TRADING_DISABLED",
         "DRY_RUN_ENABLED",
         "CONFIRM_REQUIRED",
-    }, body
+    }, res.stderr
 
 
 # Read-only endpoints with no bad-id: point config at a nonexistent env file so
@@ -133,8 +130,8 @@ def test_cli_missing_config(endpoint_id):
     # No credentials available -> CONFIG_MISSING (exit 3) before any network/login.
     res = run_cli(*MISSING_CONFIG_CASES[endpoint_id], env_overrides=_NO_CONFIG)
     assert res.code == 3, f"{endpoint_id}: expected CONFIG_MISSING exit 3, got {res.code}\n{res.stderr}"
-    body = res.json()
-    assert body.get("error", {}).get("code") in {"CONFIG_MISSING", "CONFIG_INVALID"}, body
+    # The error is written to STDERR under --json (data->stdout).
+    assert res.error_code() in {"CONFIG_MISSING", "CONFIG_INVALID"}, res.stderr
 
 
 USAGE_ERROR_CASES = {

@@ -36,6 +36,25 @@ class CliResult:
     def json(self) -> dict:
         return json.loads(self.stdout) if self.stdout.strip() else {}
 
+    def error(self) -> dict:
+        """Parse the structured error object the CLI writes to STDERR under --json.
+
+        Data goes to stdout; errors/notes go to stderr (see AGENTS.md). On error
+        stdout is empty, so negative tests read the error code from here. Log lines
+        may precede the JSON, so scan stderr lines from the end for the JSON object.
+        """
+        for line in reversed(self.stderr.strip().splitlines()):
+            line = line.strip()
+            if line.startswith("{"):
+                try:
+                    return json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+        return {}
+
+    def error_code(self) -> str | None:
+        return self.error().get("error", {}).get("code")
+
 
 def run_cli(*args: str, env_overrides: dict[str, str] | None = None) -> CliResult:
     """Run `capctl --json <args>` and RETURN the result (never asserts the code).

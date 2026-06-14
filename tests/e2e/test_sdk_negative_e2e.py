@@ -14,7 +14,6 @@ from tests.e2e._helpers import (
     BAD_DEAL_ID,
     BAD_DEAL_REF,
     BAD_EPIC,
-    BAD_NODE_ID,
     BAD_WATCHLIST_ID,
     sdk_app,
 )
@@ -28,7 +27,7 @@ EPIC = "BTCUSD"
 
 @pytest.mark.parametrize(
     "endpoint_id",
-    ["market.get", "market.prices", "market.nav_node", "position.get",
+    ["market.get", "market.prices", "position.get",
      "watchlist.get", "trade.confirm"],
 )
 def test_sdk_bad_identifier_raises(endpoint_id):
@@ -41,7 +40,6 @@ def test_sdk_bad_identifier_raises(endpoint_id):
             calls = {
                 "market.get": app.markets.get(BAD_EPIC),
                 "market.prices": app.markets.prices(BAD_EPIC),
-                "market.nav_node": app.markets.navigation_node(BAD_NODE_ID),
                 "position.get": app.trading.get_position(BAD_DEAL_ID),
                 "watchlist.get": app.watchlists.get(BAD_WATCHLIST_ID),
                 "trade.confirm": get_confirmation(BAD_DEAL_REF),
@@ -179,8 +177,9 @@ def _missing_config_env():
     ["session.ping", "session.switch", "session.logout", "session.login",
      "account.list", "account.prefs_get", "account.history_activity",
      "account.history_transactions", "market.search", "market.sentiment",
-     "market.nav_root", "position.list", "order.list", "watchlist.list",
-     "stream.prices", "stream.candles", "stream.alerts", "stream.portfolio"],
+     "market.nav_root", "market.nav_node", "position.list", "order.list",
+     "watchlist.list", "stream.prices", "stream.candles", "stream.alerts",
+     "stream.portfolio"],
 )
 def test_sdk_missing_config_raises(endpoint_id):
     # An SDK consumer with no credentials gets a CapitalCLIError (ConfigMissingError)
