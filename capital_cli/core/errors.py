@@ -2,8 +2,6 @@
 
 from typing import Any
 
-from .models import ToolResult
-
 # ============================================================
 # Error Codes (from spec section 16)
 # ============================================================
@@ -60,35 +58,33 @@ class CapitalCLIError(Exception):
         code: str,
         message: str,
         details: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         self.code = code
         self.message = message
         self.details = details or {}
         super().__init__(message)
 
-    def to_tool_result(self) -> ToolResult:
-        """Convert exception to ToolResult."""
-        return ToolResult.failure(code=self.code, message=self.message, details=self.details)
-
 
 class ConfigError(CapitalCLIError):
     """Configuration error."""
 
-    def __init__(self, message: str, details: dict[str, Any] | None = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         super().__init__(ErrorCode.CONFIG_INVALID, message, details)
 
 
 class ConfigMissingError(CapitalCLIError):
     """Required configuration (credentials) is missing."""
 
-    def __init__(self, message: str):
+    def __init__(self, message: str) -> None:
         super().__init__(ErrorCode.CONFIG_MISSING, message)
 
 
 class TradingDisabledError(CapitalCLIError):
     """Trading is disabled."""
 
-    def __init__(self, message: str = "Trading is disabled. Set CAP_ALLOW_TRADING=true to enable."):
+    def __init__(
+        self, message: str = "Trading is disabled. Set CAP_ALLOW_TRADING=true to enable."
+    ) -> None:
         super().__init__(ErrorCode.TRADING_DISABLED, message)
 
 
@@ -98,10 +94,9 @@ class DryRunError(CapitalCLIError):
     def __init__(
         self,
         message: str = (
-            "Dry-run mode is enabled (CAP_DRY_RUN=true). "
-            "Set CAP_DRY_RUN=false to allow executions."
+            "Dry-run mode is enabled (CAP_DRY_RUN=true). Set CAP_DRY_RUN=false to allow executions."
         ),
-    ):
+    ) -> None:
         super().__init__(ErrorCode.DRY_RUN_ENABLED, message)
 
 
@@ -111,14 +106,14 @@ class ConfirmRequiredError(CapitalCLIError):
     def __init__(
         self,
         message: str = "Explicit confirmation required — pass --yes to proceed.",
-    ):
+    ) -> None:
         super().__init__(ErrorCode.CONFIRM_REQUIRED, message)
 
 
 class EpicNotAllowedError(CapitalCLIError):
     """Epic is not in the allowlist."""
 
-    def __init__(self, epic: str, allowed: list[str]):
+    def __init__(self, epic: str, allowed: list[str]) -> None:
         allowed_str = ", ".join(allowed) if allowed else "none"
         message = (
             f"Epic '{epic}' is not in the allowlist (allowed: {allowed_str}). "
@@ -134,14 +129,14 @@ class EpicNotAllowedError(CapitalCLIError):
 class RiskLimitError(CapitalCLIError):
     """Risk limit exceeded."""
 
-    def __init__(self, message: str, details: dict[str, Any] | None = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         super().__init__(ErrorCode.RISK_LIMIT, message, details)
 
 
 class SessionError(CapitalCLIError):
     """Session-related error."""
 
-    def __init__(self, message: str, code: str = ErrorCode.SESSION_EXPIRED):
+    def __init__(self, message: str, code: str = ErrorCode.SESSION_EXPIRED) -> None:
         super().__init__(code, message)
 
 
@@ -152,7 +147,7 @@ class RateLimitError(CapitalCLIError):
         self,
         message: str = "Rate limit exceeded. Please slow down your requests.",
         retry_after: float | None = None,
-    ):
+    ) -> None:
         details = {"retry_after_seconds": retry_after} if retry_after else None
         super().__init__(ErrorCode.RATE_LIMITED_LOCAL, message, details)
 
@@ -160,7 +155,7 @@ class RateLimitError(CapitalCLIError):
 class BrokerError(CapitalCLIError):
     """Broker rejected the request."""
 
-    def __init__(self, message: str, details: dict[str, Any] | None = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         super().__init__(ErrorCode.BROKER_REJECTED, message, details)
 
 
@@ -172,7 +167,7 @@ class UpstreamError(CapitalCLIError):
         message: str,
         status_code: int | None = None,
         response_body: str | None = None,
-    ):
+    ) -> None:
         details: dict[str, Any] = {}
         if status_code is not None:
             details["status_code"] = status_code
@@ -184,28 +179,13 @@ class UpstreamError(CapitalCLIError):
 class PreviewError(CapitalCLIError):
     """Preview-related error."""
 
-    def __init__(self, message: str, code: str = ErrorCode.PREVIEW_NOT_FOUND):
+    def __init__(self, message: str, code: str = ErrorCode.PREVIEW_NOT_FOUND) -> None:
         super().__init__(code, message)
 
 
 # ============================================================
 # Error Helper Functions
 # ============================================================
-
-
-def handle_exception(exc: Exception) -> ToolResult:
-    """Convert any exception to a ToolResult."""
-    if isinstance(exc, CapitalCLIError):
-        return exc.to_tool_result()
-
-    # Unhandled exception
-    import traceback
-
-    return ToolResult.failure(
-        code=ErrorCode.INTERNAL_ERROR,
-        message=f"Internal error: {str(exc)}",
-        details={"traceback": traceback.format_exc()},
-    )
 
 
 def redact_secrets(data: dict[str, Any], secret_keys: set[str] | None = None) -> dict[str, Any]:

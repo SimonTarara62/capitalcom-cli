@@ -1,7 +1,8 @@
 """Risk engine and preview cache for trade validation."""
 
 import logging
-from datetime import datetime
+import math
+from datetime import datetime, timezone
 from typing import Any
 
 from .config import get_config
@@ -9,6 +10,7 @@ from .errors import (
     ConfirmRequiredError,
     DryRunError,
     PreviewError,
+    RiskLimitError,
     TradingDisabledError,
 )
 from .http_client import get_client
@@ -24,6 +26,29 @@ from .state import get_state_store
 logger = logging.getLogger(__name__)
 
 
+def _safe_positive_float(value: Any, default: float) -> float:
+    """Coerce a broker-supplied value to a finite, positive float.
+
+    Returns ``default`` when ``value`` is None/missing, not a real number, or
+    non-finite/non-positive (NaN, inf, <= 0). This keeps malformed dealing-rules
+    from poisoning the size math with TypeError/ValueError/ZeroDivisionError.
+    """
+    try:
+        coerced = float(value)
+    except (TypeError, ValueError):
+        return default
+    if not math.isfinite(coerced) or coerced <= 0:
+        return default
+    return coerced
+
+
+def _extract_rule_value(rules: dict[str, Any], key: str, default: float) -> float:
+    """Pull ``rules[key]["value"]`` defensively (the rule or its value may be null)."""
+    rule = rules.get(key)
+    raw = rule.get("value") if isinstance(rule, dict) else None
+    return _safe_positive_float(raw, default)
+
+
 class RiskEngine:
     """
     Risk engine for trade validation and preview caching.
@@ -37,7 +62,7 @@ class RiskEngine:
     - Size normalization
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = get_config()
         self.client = get_client()
         self.state = get_state_store()
@@ -48,7 +73,8 @@ class RiskEngine:
 
     def _check_daily_limit(self) -> RiskCheck:
         """Check if daily order limit is reached (persisted across invocations)."""
-        today = datetime.utcnow().date().isoformat()
+        # The trading "day" is the UTC day (matches the broker's server time).
+        today = datetime.now(timezone.utc).date().isoformat()
         count = self.state.get_order_count(today)
 
         if count >= self.config.cap_max_orders_per_day:
@@ -66,7 +92,8 @@ class RiskEngine:
 
     def increment_order_count(self) -> None:
         """Increment the persisted daily order counter."""
-        today = datetime.utcnow().date().isoformat()
+        # The trading "day" is the UTC day (matches the broker's server time).
+        today = datetime.now(timezone.utc).date().isoformat()
         self.state.increment_order_count(today)
 
     async def _get_market_details(self, epic: str) -> dict[str, Any]:
@@ -103,7 +130,11 @@ class RiskEngine:
                 passed=False,
                 message=f"Size {size} is above the broker maximum {max_size}. Use at most {max_size}.",
             )
-        rounded = round(size / increment) * increment if increment else size
+        # Guard the increment math: a missing/zero/negative/non-finite increment
+        # means "no increment constraint", so the size passes as-is.
+        if not math.isfinite(increment) or increment <= 0:
+            return size, RiskCheck(check="size", passed=True, message=f"Size {size} is valid.")
+        rounded = round(size / increment) * increment
         tol = max(increment * 1e-4, 1e-9)
         if abs(rounded - size) <= tol:
             return size, RiskCheck(check="size", passed=True, message=f"Size {size} is valid.")
@@ -128,18 +159,45 @@ class RiskEngine:
             message=f"Size normalized from {size} to {rounded} (increment {increment}).",
         )
 
+    def check_open_position_limit(self, count: int) -> None:
+        """Reject execution when the account already holds the maximum open positions.
+
+        The risk engine never makes HTTP calls, so the caller (the execute-position
+        command) supplies the current open-position count.
+
+        Raises:
+            RiskLimitError: If ``count`` is already at or above cap_max_open_positions.
+        """
+        limit = self.config.cap_max_open_positions
+        if count >= limit:
+            raise RiskLimitError(
+                f"Open position limit reached ({count}/{limit}). "
+                "Close a position or raise CAP_MAX_OPEN_POSITIONS.",
+                details={"open_positions": count, "limit": limit},
+            )
+
     async def preview_position(
-        self, request: PreviewPositionRequest
+        self,
+        request: PreviewPositionRequest,
+        *,
+        size_policy_limit: float | None = None,
+        size_policy_label: str = "max_position_size",
     ) -> PreviewResult:
         """
         Preview a position and validate against risk policy.
 
         Args:
             request: Position preview request
+            size_policy_limit: Policy size ceiling to enforce. Defaults to
+                cap_max_position_size; working-order previews pass
+                cap_max_working_order_size instead.
+            size_policy_label: Check name/label for the size-policy ceiling.
 
         Returns:
             Preview result with checks and normalized values
         """
+        if size_policy_limit is None:
+            size_policy_limit = self.config.cap_max_position_size
         checks: list[RiskCheck] = []
 
         # Check 1: Trading enabled
@@ -213,11 +271,13 @@ class RiskEngine:
             RiskCheck(check="market_details", passed=True, message="Market details fetched")
         )
 
-        # Extract dealing rules
-        dealing_rules = market_data.get("dealingRules", {})
-        min_deal_size = dealing_rules.get("minDealSize", {}).get("value", 0.1)
-        max_deal_size = dealing_rules.get("maxDealSize", {}).get("value", 1000.0)
-        min_size_increment = dealing_rules.get("minSizeIncrement", {}).get("value", 0.1)
+        # Extract dealing rules (broker values may be null/missing/non-finite)
+        dealing_rules = market_data.get("dealingRules")
+        if not isinstance(dealing_rules, dict):
+            dealing_rules = {}
+        min_deal_size = _extract_rule_value(dealing_rules, "minDealSize", 0.1)
+        max_deal_size = _extract_rule_value(dealing_rules, "maxDealSize", 1000.0)
+        min_size_increment = _extract_rule_value(dealing_rules, "minSizeIncrement", 0.1)
 
         # Check 4: Validate size against broker dealing rules (no silent changes)
         effective_size, size_check = self._validate_size(
@@ -235,13 +295,13 @@ class RiskEngine:
                 all_checks_passed=False,
             )
 
-        # Check 5: Max position size policy
-        if effective_size > self.config.cap_max_position_size:
+        # Check 5: Max size policy (position vs working-order limit, per caller)
+        if effective_size > size_policy_limit:
             checks.append(
                 RiskCheck(
-                    check="max_position_size",
+                    check=size_policy_label,
                     passed=False,
-                    message=f"Size {effective_size} exceeds policy limit {self.config.cap_max_position_size}",
+                    message=f"Size {effective_size} exceeds policy limit {size_policy_limit}",
                 )
             )
             return PreviewResult(
@@ -252,9 +312,9 @@ class RiskEngine:
 
         checks.append(
             RiskCheck(
-                check="max_position_size",
+                check=size_policy_label,
                 passed=True,
-                message=f"Size {effective_size} within limit {self.config.cap_max_position_size}",
+                message=f"Size {effective_size} within limit {size_policy_limit}",
             )
         )
 
@@ -306,8 +366,12 @@ class RiskEngine:
             auto_normalize_size=request.auto_normalize_size,
         )
 
-        # Run position checks
-        result = await self.preview_position(position_request)
+        # Run position checks, but enforce the working-order size ceiling.
+        result = await self.preview_position(
+            position_request,
+            size_policy_limit=self.config.cap_max_working_order_size,
+            size_policy_label="max_working_order_size",
+        )
 
         # Add working order specific fields
         if result.all_checks_passed:

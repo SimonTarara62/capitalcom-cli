@@ -118,6 +118,22 @@ def test_execute_position_with_yes(runner, mock_trade, monkeypatch):
     assert mock_trade.post.await_args.kwargs["rate_limit_type"] == "trading"
 
 
+def test_execute_position_rejected_at_open_position_limit(runner, mock_trade, monkeypatch):
+    from capital_cli.core.errors import RiskLimitError
+
+    risk = _arm_execution(monkeypatch)
+
+    def limit(count):
+        raise RiskLimitError("Open position limit reached (3)")
+
+    risk.check_open_position_limit = MagicMock(side_effect=limit)
+    # /positions returns one open position (count source).
+    mock_trade.get.return_value.json.return_value = {"positions": [{"position": {}}]}
+    result = runner.invoke(app, ["trade", "execute-position", "PV1", "--yes", "--no-wait"])
+    assert result.exit_code == 4  # RISK_LIMIT
+    mock_trade.post.assert_not_awaited()
+
+
 def test_close_position_with_yes(runner, mock_trade, monkeypatch):
     _arm_execution(monkeypatch)
     mock_trade.delete.return_value.json.return_value = {"dealReference": "o_c"}
@@ -189,6 +205,18 @@ async def test_wait_for_confirmation_polls_past_pending(monkeypatch):
 
     assert result["status"] == "ACCEPTED"
     assert client.get.await_count >= 2
+
+
+async def test_wait_for_confirmation_surfaces_broker_error(monkeypatch):
+    """A non-transient broker error during polling must surface, not become TIMEOUT."""
+    from capital_cli.core.errors import UpstreamError
+
+    client = MagicMock()
+    client.get = AsyncMock(side_effect=UpstreamError("not found", status_code=404))
+    monkeypatch.setattr("capital_cli.cli.trade_cmds.get_client", lambda: client)
+
+    with pytest.raises(UpstreamError):
+        await _wait_for_confirmation("o_bad", timeout_s=2.0, poll_interval_ms=100)
 
 
 async def test_wait_for_confirmation_timeout(monkeypatch):

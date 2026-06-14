@@ -4,7 +4,14 @@ import asyncio
 from collections.abc import Callable
 from typing import Any, TypeVar
 
+import httpx
+
 T = TypeVar("T")
+
+# Transient/network errors are worth retrying while polling; everything else
+# (broker rejections, upstream 4xx/5xx surfaced as CapitalCLIError, programming
+# errors) must propagate so the caller doesn't mistake a rejection for a timeout.
+_TRANSIENT_ERRORS = (httpx.TransportError, asyncio.TimeoutError)
 
 
 async def poll_until(
@@ -18,6 +25,11 @@ async def poll_until(
     """
     Poll a function until a condition is met or timeout.
 
+    Only transient/network errors (httpx.TransportError, asyncio.TimeoutError)
+    are swallowed and retried. Any other exception — notably CapitalCLIError /
+    UpstreamError / BrokerError raised for a broker rejection — propagates so the
+    caller can report the real failure instead of masking it as a timeout.
+
     Args:
         fn: Async function to call
         condition: Condition function that checks the result
@@ -26,7 +38,7 @@ async def poll_until(
         initial_delay_ms: Initial delay before first poll
 
     Returns:
-        Result if condition met, None if timeout
+        Result if condition met, None if timeout.
     """
     import time
 
@@ -36,7 +48,6 @@ async def poll_until(
     if initial_delay_ms > 0:
         await asyncio.sleep(initial_delay_ms / 1000.0)
 
-    attempt = 0
     while True:
         elapsed = time.monotonic() - start_time
         if elapsed >= timeout_s:
@@ -46,13 +57,12 @@ async def poll_until(
             result = await fn()
             if condition(result):
                 return result
-        except Exception:
-            # Continue polling on errors
+        except _TRANSIENT_ERRORS:
+            # Continue polling on transient/network errors only.
             pass
 
         # Wait before next attempt
         await asyncio.sleep(poll_interval_ms / 1000.0)
-        attempt += 1
 
 
 def format_iso_datetime(dt: Any | None) -> str | None:

@@ -50,7 +50,7 @@ class WebSocketClient:
     and automatic reconnection.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = get_config()
         self.session_manager = get_session_manager()
         self._ws: ClientConnection | None = None

@@ -43,7 +43,10 @@ async def _wait_for_confirmation(
 
     result = await poll_until(check, done, timeout_s=timeout_s, poll_interval_ms=poll_interval_ms)
     if result is None:
-        return {"status": "TIMEOUT", "message": f"Confirmation timed out after {timeout_s}s"}
+        return {
+            "status": "TIMEOUT",
+            "message": f"Confirmation timed out after {timeout_s}s",
+        }
     if "dealStatus" in result:
         result = {**result, "status": result["dealStatus"]}
     return result
@@ -337,6 +340,9 @@ def execute_position(
         risk = get_risk_engine()
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes, preview_id=preview_id)
+        # Enforce the max-open-positions safety limit (engine makes no HTTP calls).
+        open_positions = (await client.get("/positions")).json().get("positions", [])
+        risk.check_open_position_limit(len(open_positions))
         normalized = risk.get_preview(preview_id).normalized_request
         body = _build_broker_request(normalized, include_order_fields=False)
         data = (await client.post("/positions", json=body, rate_limit_type="trading")).json()
