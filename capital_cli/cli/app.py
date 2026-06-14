@@ -11,6 +11,7 @@ import typer
 from capital_cli import __version__
 from capital_cli.cli import (
     account_cmds,
+    doctor_cmds,
     market_cmds,
     session_cmds,
     stream_cmds,
@@ -88,6 +89,7 @@ app.add_typer(account_cmds.app, name="account")
 app.add_typer(trade_cmds.app, name="trade")
 app.add_typer(watchlist_cmds.app, name="watchlist")
 app.add_typer(stream_cmds.app, name="stream")
+app.command(name="doctor")(doctor_cmds.doctor)
 
 
 _GLOBAL_FLAGS = {"--json", "--plain", "--no-color"}

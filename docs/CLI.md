@@ -25,12 +25,29 @@ $ capctl [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `doctor`: Check env, credentials, and trading status...
 * `session`: Session lifecycle: login, ping, logout.
 * `market`: Market data: search, prices, sentiment.
 * `account`: Accounts: list, preferences, history.
 * `trade`: Trading: positions, orders, preview, execute.
 * `watchlist`: Watchlists: list, create, add, remove.
 * `stream`: Real-time streaming: prices, alerts,...
+
+## `capctl doctor`
+
+Check env, credentials, and trading status (no secrets in output).
+
+Run this first to confirm capctl is wired up correctly before trading.
+
+**Usage**:
+
+```console
+$ capctl doctor [OPTIONS]
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
 
 ## `capctl session`
 
