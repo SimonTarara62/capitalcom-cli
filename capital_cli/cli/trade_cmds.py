@@ -337,6 +337,9 @@ def execute_position(
         risk = get_risk_engine()
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes, preview_id=preview_id)
+        # Enforce the max-open-positions safety limit (engine makes no HTTP calls).
+        open_positions = (await client.get("/positions")).json().get("positions", [])
+        risk.check_open_position_limit(len(open_positions))
         normalized = risk.get_preview(preview_id).normalized_request
         body = _build_broker_request(normalized, include_order_fields=False)
         data = (await client.post("/positions", json=body, rate_limit_type="trading")).json()

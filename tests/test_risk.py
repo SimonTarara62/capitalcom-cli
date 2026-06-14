@@ -79,3 +79,69 @@ def test_mutation_guard_requires_confirm():
 def test_mutation_guard_allows_without_trading_enabled():
     # Trading is disabled by default in the test config; a mutation must still be allowed.
     RiskEngine().validate_mutation_guards(confirm=True)  # must not raise
+
+
+# ----- T6: enforce working-order size + max-open-positions limits -----
+
+
+def _arm_market_details(engine, *, min_size=0.1, max_size=1000.0, increment=0.1):
+    from unittest.mock import AsyncMock
+
+    engine._get_market_details = AsyncMock(
+        return_value={
+            "dealingRules": {
+                "minDealSize": {"value": min_size},
+                "maxDealSize": {"value": max_size},
+                "minSizeIncrement": {"value": increment},
+            },
+            "snapshot": {"bid": 2000.0, "offer": 2001.0},
+        }
+    )
+
+
+async def test_working_order_size_uses_working_order_limit(monkeypatch):
+    """A working order over cap_max_working_order_size fails, separate from cap_max_position_size."""
+    from capital_cli.core.config import get_config
+    from capital_cli.core.models import Direction, PreviewWorkingOrderRequest, WorkingOrderType
+
+    cfg = get_config()
+    cfg.cap_allow_trading = True
+    cfg.cap_allowed_epics = "ALL"
+    cfg.cap_max_position_size = 100.0
+    cfg.cap_max_working_order_size = 1.0
+    try:
+        engine = RiskEngine()
+        _arm_market_details(engine)
+        request = PreviewWorkingOrderRequest(
+            epic="GOLD",
+            direction=Direction.BUY,
+            type=WorkingOrderType.LIMIT,
+            level=1900.0,
+            size=5.0,  # within position limit (100) but over working-order limit (1)
+        )
+        result = await engine.preview_working_order(request)
+        assert result.all_checks_passed is False
+        failed = [c for c in result.checks if not c.passed]
+        assert any(c.check == "max_working_order_size" for c in failed)
+    finally:
+        cfg.cap_allow_trading = False
+        cfg.cap_allowed_epics = ""
+        cfg.cap_max_position_size = 1.0
+        cfg.cap_max_working_order_size = 1.0
+
+
+def test_check_open_position_limit_rejects_at_cap():
+    from capital_cli.core.config import get_config
+    from capital_cli.core.errors import RiskLimitError
+
+    cfg = get_config()
+    cfg.cap_max_open_positions = 3
+    try:
+        engine = RiskEngine()
+        engine.check_open_position_limit(2)  # below cap: ok
+        with pytest.raises(RiskLimitError):
+            engine.check_open_position_limit(3)  # at cap: reject
+        with pytest.raises(RiskLimitError):
+            engine.check_open_position_limit(5)  # over cap: reject
+    finally:
+        cfg.cap_max_open_positions = 3

@@ -118,6 +118,22 @@ def test_execute_position_with_yes(runner, mock_trade, monkeypatch):
     assert mock_trade.post.await_args.kwargs["rate_limit_type"] == "trading"
 
 
+def test_execute_position_rejected_at_open_position_limit(runner, mock_trade, monkeypatch):
+    from capital_cli.core.errors import RiskLimitError
+
+    risk = _arm_execution(monkeypatch)
+
+    def limit(count):
+        raise RiskLimitError("Open position limit reached (3)")
+
+    risk.check_open_position_limit = MagicMock(side_effect=limit)
+    # /positions returns one open position (count source).
+    mock_trade.get.return_value.json.return_value = {"positions": [{"position": {}}]}
+    result = runner.invoke(app, ["trade", "execute-position", "PV1", "--yes", "--no-wait"])
+    assert result.exit_code == 4  # RISK_LIMIT
+    mock_trade.post.assert_not_awaited()
+
+
 def test_close_position_with_yes(runner, mock_trade, monkeypatch):
     _arm_execution(monkeypatch)
     mock_trade.delete.return_value.json.return_value = {"dealReference": "o_c"}

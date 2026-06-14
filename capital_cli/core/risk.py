@@ -9,6 +9,7 @@ from .errors import (
     ConfirmRequiredError,
     DryRunError,
     PreviewError,
+    RiskLimitError,
     TradingDisabledError,
 )
 from .http_client import get_client
@@ -130,18 +131,45 @@ class RiskEngine:
             message=f"Size normalized from {size} to {rounded} (increment {increment}).",
         )
 
+    def check_open_position_limit(self, count: int) -> None:
+        """Reject execution when the account already holds the maximum open positions.
+
+        The risk engine never makes HTTP calls, so the caller (the execute-position
+        command) supplies the current open-position count.
+
+        Raises:
+            RiskLimitError: If ``count`` is already at or above cap_max_open_positions.
+        """
+        limit = self.config.cap_max_open_positions
+        if count >= limit:
+            raise RiskLimitError(
+                f"Open position limit reached ({count}/{limit}). "
+                "Close a position or raise CAP_MAX_OPEN_POSITIONS.",
+                details={"open_positions": count, "limit": limit},
+            )
+
     async def preview_position(
-        self, request: PreviewPositionRequest
+        self,
+        request: PreviewPositionRequest,
+        *,
+        size_policy_limit: float | None = None,
+        size_policy_label: str = "max_position_size",
     ) -> PreviewResult:
         """
         Preview a position and validate against risk policy.
 
         Args:
             request: Position preview request
+            size_policy_limit: Policy size ceiling to enforce. Defaults to
+                cap_max_position_size; working-order previews pass
+                cap_max_working_order_size instead.
+            size_policy_label: Check name/label for the size-policy ceiling.
 
         Returns:
             Preview result with checks and normalized values
         """
+        if size_policy_limit is None:
+            size_policy_limit = self.config.cap_max_position_size
         checks: list[RiskCheck] = []
 
         # Check 1: Trading enabled
@@ -237,13 +265,13 @@ class RiskEngine:
                 all_checks_passed=False,
             )
 
-        # Check 5: Max position size policy
-        if effective_size > self.config.cap_max_position_size:
+        # Check 5: Max size policy (position vs working-order limit, per caller)
+        if effective_size > size_policy_limit:
             checks.append(
                 RiskCheck(
-                    check="max_position_size",
+                    check=size_policy_label,
                     passed=False,
-                    message=f"Size {effective_size} exceeds policy limit {self.config.cap_max_position_size}",
+                    message=f"Size {effective_size} exceeds policy limit {size_policy_limit}",
                 )
             )
             return PreviewResult(
@@ -254,9 +282,9 @@ class RiskEngine:
 
         checks.append(
             RiskCheck(
-                check="max_position_size",
+                check=size_policy_label,
                 passed=True,
-                message=f"Size {effective_size} within limit {self.config.cap_max_position_size}",
+                message=f"Size {effective_size} within limit {size_policy_limit}",
             )
         )
 
@@ -308,8 +336,12 @@ class RiskEngine:
             auto_normalize_size=request.auto_normalize_size,
         )
 
-        # Run position checks
-        result = await self.preview_position(position_request)
+        # Run position checks, but enforce the working-order size ceiling.
+        result = await self.preview_position(
+            position_request,
+            size_policy_limit=self.config.cap_max_working_order_size,
+            size_policy_label="max_working_order_size",
+        )
 
         # Add working order specific fields
         if result.all_checks_passed:
