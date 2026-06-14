@@ -8,6 +8,17 @@ from capital_cli.core.http_client import get_client
 from capital_cli.core.utils import poll_until
 
 
+async def get_confirmation(deal_reference: str) -> dict[str, Any]:
+    """Read GET /confirms/{dealReference} once and return the parsed JSON.
+
+    Single-shot counterpart to :func:`wait_for_confirmation`. Unlike the wait
+    path, this does NOT normalize ``dealStatus`` to ``status`` — it returns the
+    broker payload verbatim, matching the CLI's historical non-wait behavior.
+    """
+    client = get_client()
+    return (await client.get(f"/confirms/{deal_reference}")).json()
+
+
 async def wait_for_confirmation(
     deal_reference: str, timeout_s: float, poll_interval_ms: int = 500
 ) -> dict[str, Any]:

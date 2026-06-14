@@ -10,8 +10,8 @@ from rich.live import Live
 from rich.table import Table
 
 from capital_cli.cli.runner import run
-from capital_cli.core.session import get_session_manager
 from capital_cli.services.streaming import StreamService
+from capital_cli.services.trading import TradingService
 
 app = typer.Typer(no_args_is_help=True, help="Real-time streaming: prices, alerts, portfolio.")
 
@@ -165,13 +165,9 @@ def portfolio(
     it arrives (flushed per line).
     """
     out = ctx.obj.out
-    from capital_cli.core.http_client import get_client
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        await sm.ensure_logged_in()
-        client = get_client()
-        positions = (await client.get("/positions")).json().get("positions", [])
+        positions = (await TradingService().list_positions()).get("positions", [])
         epics = [
             p.get("market", {}).get("epic") for p in positions if p.get("market", {}).get("epic")
         ]

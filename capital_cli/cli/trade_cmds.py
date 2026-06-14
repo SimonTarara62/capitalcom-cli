@@ -8,7 +8,6 @@ import typer
 
 from capital_cli.cli.live_guard import warn_if_live
 from capital_cli.cli.runner import run
-from capital_cli.core.http_client import get_client
 from capital_cli.core.models import (
     Direction,
     PreviewPositionRequest,
@@ -16,6 +15,7 @@ from capital_cli.core.models import (
     WorkingOrderType,
 )
 from capital_cli.core.session import get_session_manager
+from capital_cli.services.confirmations import get_confirmation as _get_confirmation
 from capital_cli.services.confirmations import (
     wait_for_confirmation as _wait_for_confirmation,
 )
@@ -154,11 +154,10 @@ def confirm(
 
     async def _do() -> dict[str, Any]:
         sm = get_session_manager()
-        client = get_client()
         await sm.ensure_logged_in()
         if wait:
             return await _wait_for_confirmation(deal_reference, timeout_s=timeout)
-        return (await client.get(f"/confirms/{deal_reference}")).json()
+        return await _get_confirmation(deal_reference)
 
     out.record(run(out, _do, label="trade confirm"), title="Confirmation")
 

@@ -1,4 +1,40 @@
-from capital_cli.services.confirmations import build_broker_request, mutation_status
+from capital_cli.services.confirmations import (
+    build_broker_request,
+    get_confirmation,
+    mutation_status,
+)
+
+
+class _Resp:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+
+class _RecordingClient:
+    def __init__(self, payload):
+        self._payload = payload
+        self.calls: list[str] = []
+
+    async def get(self, path):
+        self.calls.append(path)
+        return _Resp(self._payload)
+
+
+async def test_get_confirmation_hits_endpoint_and_returns_json(monkeypatch):
+    payload = {"dealStatus": "ACCEPTED", "dealReference": "o_ref123"}
+    client = _RecordingClient(payload)
+    monkeypatch.setattr(
+        "capital_cli.services.confirmations.get_client", lambda: client
+    )
+
+    result = await get_confirmation("o_ref123")
+
+    assert client.calls == ["/confirms/o_ref123"]
+    # Single-shot path returns the broker payload verbatim (no status normalization).
+    assert result == payload
 
 
 def test_build_keeps_zero_valued_fields():

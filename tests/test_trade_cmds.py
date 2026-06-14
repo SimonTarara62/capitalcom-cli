@@ -40,7 +40,7 @@ def mock_trade(monkeypatch):
     client.post = AsyncMock(return_value=resp)
     client.delete = AsyncMock(return_value=resp)
     client.put = AsyncMock(return_value=resp)
-    monkeypatch.setattr("capital_cli.cli.trade_cmds.get_client", lambda: client)
+    monkeypatch.setattr("capital_cli.services.confirmations.get_client", lambda: client)
     monkeypatch.setattr("capital_cli.services.trading.get_client", lambda: client)
 
     # Risk engine: a passing preview.

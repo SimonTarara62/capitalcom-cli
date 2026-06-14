@@ -38,14 +38,20 @@ CAPCTL_E2E=1 pytest tests/e2e -m e2e -v
 
 ## Project structure
 
-- `capital_cli/core/` — services: config, HTTP client, session, rate limiter,
-  risk engine, models, errors, WebSocket. **All safety rules live in
-  `core/risk.py`.**
-- `capital_cli/cli/` — one Typer app per command group; Rich/JSON rendering in
-  `cli/output.py`; the async→exit-code runner in `cli/runner.py`.
+- `capital_cli/core/` — low-level primitives: config, HTTP client, session,
+  rate limiter, risk engine, models, WebSocket, audit, state. **All safety
+  rules live in `core/risk.py`.**
+- `capital_cli/services/` — presentation-free domain services (markets,
+  accounts, watchlists, trading, streaming, confirmations) composing `core`;
+  the reusable broker engine.
+- `capital_cli/sdk/` — the experimental public facade (`CapitalComApp`,
+  `CapitalComConfig`, `RiskPolicy`).
+- `capital_cli/cli/` — thin Typer wrappers, one app per command group;
+  Rich/JSON rendering in `cli/output.py`; the async→exit-code runner in
+  `cli/runner.py`.
 - `tests/` — offline unit tests; `tests/e2e/` — opt-in live-demo tests.
-- The `cli/` layer never calls the API directly: parse args → call a `core`
-  service → render the result.
+- The `cli/` layer never calls the broker API directly: parse args → call a
+  service → render the result (it goes through `services`, not the broker).
 
 ## Tech stack
 
