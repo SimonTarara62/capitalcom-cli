@@ -5,6 +5,7 @@ into per-domain operations with structured returns and no Typer/Rich. The CLI
 and the SDK facade (capital_cli.sdk) both build on them.
 """
 
+from .accounts import AccountService
 from .markets import MarketService
 
-__all__ = ["MarketService"]
+__all__ = ["AccountService", "MarketService"]

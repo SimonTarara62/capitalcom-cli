@@ -11,7 +11,7 @@ def mock_account(monkeypatch):
     sm = MagicMock()
     sm.ensure_logged_in = AsyncMock()
     sm.account_id = "ACC1"
-    monkeypatch.setattr("capital_cli.cli.account_cmds.get_session_manager", lambda: sm)
+    monkeypatch.setattr("capital_cli.services.accounts.get_session_manager", lambda: sm)
 
     client = MagicMock()
     resp = MagicMock()
@@ -30,7 +30,7 @@ def mock_account(monkeypatch):
     client.get = AsyncMock(return_value=resp)
     client.put = AsyncMock(return_value=resp)
     client.post = AsyncMock(return_value=resp)
-    monkeypatch.setattr("capital_cli.cli.account_cmds.get_client", lambda: client)
+    monkeypatch.setattr("capital_cli.services.accounts.get_client", lambda: client)
     return client
 
 
@@ -88,7 +88,7 @@ def _arm_prefs(monkeypatch):
 
     risk = MagicMock()
     risk.validate_mutation_guards = MagicMock(return_value=None)
-    monkeypatch.setattr("capital_cli.cli.account_cmds.get_risk_engine", lambda: risk)
+    monkeypatch.setattr("capital_cli.services.accounts.get_risk_engine", lambda: risk)
     return risk
 
 
