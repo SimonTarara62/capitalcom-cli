@@ -1,11 +1,20 @@
 """Core data models for Capital.com CLI."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
+
+
+def _as_utc(dt: datetime) -> datetime:
+    """Treat a naive datetime as UTC (e.g. legacy persisted state); pass aware
+    datetimes through unchanged so age math never mixes naive and aware."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
 
 # ============================================================
 # Enums
@@ -48,7 +57,7 @@ class ToolMeta(BaseModel):
     """Metadata for tool results."""
 
     request_id: str = Field(default_factory=lambda: str(uuid4()))
-    ts: str = Field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    ts: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 class ToolError(BaseModel):
@@ -88,16 +97,16 @@ class SessionTokens(BaseModel):
 
     cst: str = Field(..., description="CST authorization token")
     x_security_token: str = Field(..., description="X-SECURITY-TOKEN account token")
-    last_used_at: datetime = Field(default_factory=datetime.utcnow)
+    last_used_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     def is_expired(self, max_age_seconds: int = 540) -> bool:
         """Check if session is likely expired (9 minutes default)."""
-        age = (datetime.utcnow() - self.last_used_at).total_seconds()
+        age = (datetime.now(timezone.utc) - _as_utc(self.last_used_at)).total_seconds()
         return age >= max_age_seconds
 
     def update_last_used(self) -> None:
         """Update the last used timestamp."""
-        self.last_used_at = datetime.utcnow()
+        self.last_used_at = datetime.now(timezone.utc)
 
 
 class SessionStatus(BaseModel):
@@ -205,11 +214,11 @@ class PreviewResult(BaseModel):
     estimated_risk_notes: str | None = Field(
         default=None, description="Risk estimation notes"
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     def is_expired(self, ttl_seconds: int = 120) -> bool:
         """Check if preview has expired (2 minutes default)."""
-        age = (datetime.utcnow() - self.created_at).total_seconds()
+        age = (datetime.now(timezone.utc) - _as_utc(self.created_at)).total_seconds()
         return age >= ttl_seconds
 
 

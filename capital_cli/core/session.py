@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from .config import get_config
@@ -187,8 +187,8 @@ class SessionManager:
                 logged_in=False,
             )
 
-        # Calculate expiry estimate
-        age = (datetime.utcnow() - self.tokens.last_used_at).total_seconds()
+        # Calculate expiry estimate (last_used_at is tz-aware UTC)
+        age = (datetime.now(timezone.utc) - self.tokens.last_used_at).total_seconds()
         expires_in = max(0, int(540 - age))  # 9 minutes = 540 seconds
 
         return SessionStatus(
@@ -196,7 +196,7 @@ class SessionManager:
             base_url=self.config.base_url,
             logged_in=True,
             account_id=self.account_id,
-            last_used_at=self.tokens.last_used_at.isoformat() + "Z",
+            last_used_at=self.tokens.last_used_at.isoformat(),
             expires_in_s_estimate=expires_in,
         )
 

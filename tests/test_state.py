@@ -1,6 +1,6 @@
 """StateStore persistence and cross-process RiskEngine preview flow."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -88,7 +88,7 @@ def test_risk_engine_rejects_expired_persisted_preview(state_file):
     from capital_cli.core.errors import PreviewError
     from capital_cli.core.risk import RiskEngine
 
-    stale = _make_preview(created_at=datetime.utcnow() - timedelta(seconds=600))
+    stale = _make_preview(created_at=datetime.now(timezone.utc) - timedelta(seconds=600))
     RiskEngine().state.save_preview(stale)
     with pytest.raises(PreviewError):
         RiskEngine().get_preview(stale.preview_id)
