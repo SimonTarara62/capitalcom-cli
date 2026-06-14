@@ -86,8 +86,25 @@ app.add_typer(watchlist_cmds.app, name="watchlist")
 app.add_typer(stream_cmds.app, name="stream")
 
 
+_GLOBAL_FLAGS = {"--json", "--plain", "--no-color"}
+
+
+def _hoist_global_flags(argv: list[str]) -> list[str]:
+    """Move boolean global flags (e.g. trailing --json) ahead of the subcommand
+    so `capctl session status --json` works like `capctl --json session status`."""
+    if len(argv) < 2:
+        return argv
+    prog, rest = argv[0], argv[1:]
+    hoisted = [a for a in rest if a in _GLOBAL_FLAGS]
+    if not hoisted:
+        return argv
+    remaining = [a for a in rest if a not in _GLOBAL_FLAGS]
+    return [prog, *hoisted, *remaining]
+
+
 def run_cli() -> None:
     """Console-script entry point. Renders Click usage errors as JSON when --json is set."""
+    sys.argv = _hoist_global_flags(sys.argv)
     json_mode = "--json" in sys.argv
     try:
         result = app(standalone_mode=False)
