@@ -7,13 +7,16 @@ import sys
 
 def _run(*args, env_overrides):
     import os
+
     env = {**os.environ, "CAP_ENV_FILE": "/nonexistent-capctl.env", **env_overrides}
     # ensure no ambient creds leak in from the developer's shell
     for k in ("CAP_API_KEY", "CAP_IDENTIFIER", "CAP_API_PASSWORD"):
         env.pop(k, None)
     return subprocess.run(
         [sys.executable, "-m", "capital_cli", *args],
-        capture_output=True, text=True, env=env,
+        capture_output=True,
+        text=True,
+        env=env,
     )
 
 

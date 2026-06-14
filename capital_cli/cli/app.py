@@ -30,7 +30,10 @@ app = typer.Typer(
 
 def _version_callback(value: bool) -> None:
     if value:
-        typer.echo(f"capctl {__version__}")
+        if "--json" in sys.argv:
+            typer.echo(_json.dumps({"name": "capctl", "version": __version__}))
+        else:
+            typer.echo(f"capctl {__version__}")
         raise typer.Exit()
 
 
