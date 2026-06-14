@@ -7,7 +7,7 @@ import time
 class TokenBucket:
     """Token bucket rate limiter (async-safe)."""
 
-    def __init__(self, capacity: float, refill_rate: float):
+    def __init__(self, capacity: float, refill_rate: float) -> None:
         """
         Initialize token bucket.
 
@@ -94,7 +94,7 @@ class RateLimiter:
     - Trading: 1 request per 0.1 seconds for POST /positions, POST /workingorders
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Global rate limit: 10 req/s
         self.global_limiter = TokenBucket(capacity=10.0, refill_rate=10.0)
 

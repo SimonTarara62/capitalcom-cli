@@ -25,7 +25,7 @@ class SessionManager:
     - Logout (DELETE /session)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = get_config()
         self.client = get_client()
         self.client.set_relogin(self._force_relogin)

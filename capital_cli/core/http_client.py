@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class CapitalClient:
     """HTTP client for Capital.com REST API."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = get_config()
         self.rate_limiter = get_rate_limiter()
         self.session_tokens: SessionTokens | None = None
