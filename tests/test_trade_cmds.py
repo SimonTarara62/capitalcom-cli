@@ -118,6 +118,40 @@ def test_execute_position_with_yes(runner, mock_trade, monkeypatch):
     assert mock_trade.post.await_args.kwargs["rate_limit_type"] == "trading"
 
 
+def test_execute_position_writes_audit_log(runner, mock_trade, monkeypatch, tmp_path):
+    _arm_execution(monkeypatch)
+    audit_path = tmp_path / "audit.log"
+    monkeypatch.setenv("CAP_AUDIT_LOG", str(audit_path))
+    mock_trade.post.return_value.json.return_value = {
+        "dealReference": "o_x",
+        "dealStatus": "ACCEPTED",
+    }
+    result = runner.invoke(
+        app, ["--json", "trade", "execute-position", "PV1", "--yes", "--no-wait"]
+    )
+    assert result.exit_code == 0
+    assert audit_path.exists()
+    record = json.loads(audit_path.read_text().strip())
+    assert record["command"] == "execute-position"
+    assert record["deal_reference"] == "o_x"
+    assert record["status"] == "ACCEPTED"
+    assert record["preview_id"] == "PV1"
+    blob = audit_path.read_text().lower()
+    assert "password" not in blob and "api_key" not in blob
+
+
+def test_execute_position_no_audit_when_unset(runner, mock_trade, monkeypatch, tmp_path):
+    _arm_execution(monkeypatch)
+    monkeypatch.delenv("CAP_AUDIT_LOG", raising=False)
+    audit_path = tmp_path / "audit.log"
+    mock_trade.post.return_value.json.return_value = {"dealReference": "o_x"}
+    result = runner.invoke(
+        app, ["--json", "trade", "execute-position", "PV1", "--yes", "--no-wait"]
+    )
+    assert result.exit_code == 0
+    assert not audit_path.exists()
+
+
 def test_execute_position_rejected_at_open_position_limit(runner, mock_trade, monkeypatch):
     from capital_cli.core.errors import RiskLimitError
 

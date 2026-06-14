@@ -145,6 +145,7 @@ All settings (one `CAP_*` variable each) and their defaults:
 | `CAP_HTTP_TIMEOUT_S` | `15` | HTTP timeout |
 | `CAP_LOG_LEVEL` | `WARNING` | `DEBUG` … `CRITICAL` |
 | `CAP_WS_ENABLED` | `false` | Required for `capctl stream …` |
+| `CAP_AUDIT_LOG` | (none) | File path; appends one JSONL line per executed mutation (no secrets) |
 
 ### Credential-exec helpers (`CAP_*_CMD`)
 

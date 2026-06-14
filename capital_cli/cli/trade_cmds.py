@@ -8,6 +8,8 @@ import typer
 
 from capital_cli.cli.live_guard import warn_if_live
 from capital_cli.cli.runner import run
+from capital_cli.core.audit import audit_mutation
+from capital_cli.core.config import get_config
 from capital_cli.core.http_client import get_client
 from capital_cli.core.models import (
     Direction,
@@ -50,6 +52,22 @@ async def _wait_for_confirmation(
     if "dealStatus" in result:
         result = {**result, "status": result["dealStatus"]}
     return result
+
+
+def _mutation_status(data: dict[str, Any]) -> str:
+    """Derive an audit status string from a broker mutation response.
+
+    Prefers the confirmation's normalized ``status`` (ACCEPTED/REJECTED/TIMEOUT),
+    then a top-level ``dealStatus``, then ``status``, else ``SUBMITTED``.
+    """
+    confirmation = data.get("confirmation")
+    if isinstance(confirmation, dict) and confirmation.get("status"):
+        return str(confirmation["status"])
+    if data.get("dealStatus"):
+        return str(data["dealStatus"])
+    if data.get("status"):
+        return str(data["status"])
+    return "SUBMITTED"
 
 
 def _parse_direction(direction: str) -> Direction:
@@ -358,6 +376,16 @@ def execute_position(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="execute-position",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            epic=normalized.get("epic"),
+            size=normalized.get("size"),
+            preview_id=preview_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade execute-position"), title="Execute position")
@@ -392,6 +420,16 @@ def execute_order(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="execute-order",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            epic=normalized.get("epic"),
+            size=normalized.get("size"),
+            preview_id=preview_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade execute-order"), title="Execute order")
@@ -421,6 +459,13 @@ def close(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="close",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade close"), title="Close position")
@@ -450,6 +495,13 @@ def cancel(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="cancel",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade cancel"), title="Cancel order")
@@ -504,6 +556,13 @@ def amend_position(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="amend-position",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade amend-position"), title="Amend position")
@@ -556,6 +615,13 @@ def amend_order(
                 data["dealReference"], timeout_s=timeout
             )
         data["active_account_id"] = sm.account_id
+        audit_mutation(
+            command="amend-order",
+            env=get_config().cap_env.value,
+            account=sm.account_id,
+            deal_reference=data.get("dealReference"),
+            status=_mutation_status(data),
+        )
         return data
 
     out.record(run(out, _do, label="trade amend-order"), title="Amend order")
