@@ -243,6 +243,7 @@ def preview_position(
     direction_e = _parse_direction(direction)
 
     async def _do() -> dict[str, Any]:
+        warn_if_live(out)
         sm = get_session_manager()
         risk = get_risk_engine()
         await sm.ensure_logged_in()
@@ -308,6 +309,7 @@ def preview_order(
     order_type_e = _parse_order_type(order_type)
 
     async def _do() -> dict[str, Any]:
+        warn_if_live(out)
         sm = get_session_manager()
         risk = get_risk_engine()
         await sm.ensure_logged_in()

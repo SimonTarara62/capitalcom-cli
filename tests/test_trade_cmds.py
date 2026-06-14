@@ -118,6 +118,17 @@ def test_execute_position_with_yes(runner, mock_trade, monkeypatch):
     assert mock_trade.post.await_args.kwargs["rate_limit_type"] == "trading"
 
 
+def test_preview_position_live_prints_banner(runner, mock_trade, monkeypatch):
+    # --live sets CAP_ENV=live in os.environ; monkeypatch ensures it's restored
+    # so the live env never leaks into a later test.
+    monkeypatch.setenv("CAP_ENV", "demo")
+    result = runner.invoke(
+        app, ["--live", "--json", "trade", "preview-position", "GOLD", "BUY", "1.0"]
+    )
+    assert result.exit_code == 0
+    assert "LIVE" in result.stderr
+
+
 def test_execute_position_writes_audit_log(runner, mock_trade, monkeypatch, tmp_path):
     _arm_execution(monkeypatch)
     audit_path = tmp_path / "audit.log"
