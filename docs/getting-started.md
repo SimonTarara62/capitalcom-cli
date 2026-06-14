@@ -35,17 +35,20 @@ You now have the three values the CLI needs:
 
 ## 3. Install capctl
 
-**Recommended — one line, no clone** (needs [pipx](https://pipx.pypa.io/)):
+**Recommended — one line** (needs [pipx](https://pipx.pypa.io/)):
 
 ```bash
-pipx install git+https://github.com/SimonTarara62/capitalcom-cli.git
+pipx install capitalcom-cli
 ```
 
 Using [uv](https://docs.astral.sh/uv/) instead:
 
 ```bash
-uv tool install git+https://github.com/SimonTarara62/capitalcom-cli.git
+uv tool install capitalcom-cli
 ```
+
+(To install the latest unreleased code instead, use
+`git+https://github.com/SimonTarara62/capitalcom-cli.git` in place of the package name.)
 
 **Windows** (PowerShell): install Python 3.10+ from python.org (tick "Add
 python.exe to PATH"), then either of the commands above works in PowerShell. If

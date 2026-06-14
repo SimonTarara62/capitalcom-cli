@@ -5,6 +5,7 @@ A fast, scriptable command-line client for the [Capital.com](https://capital.com
 Browse markets, manage accounts and watchlists, preview and execute trades behind multiple safety guardrails, and stream real-time prices — from your terminal, in human-readable tables or raw JSON for automation.
 
 [![CI](https://github.com/SimonTarara62/capitalcom-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/SimonTarara62/capitalcom-cli/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/capitalcom-cli.svg)](https://pypi.org/project/capitalcom-cli/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![Release](https://img.shields.io/github/v/release/SimonTarara62/capitalcom-cli?sort=semver)](https://github.com/SimonTarara62/capitalcom-cli/releases)
@@ -56,23 +57,27 @@ tokens are not persisted between separate invocations.
 
 Requires Python 3.10+.
 
-**One-line install (recommended)** — isolated, global `capctl` command, no clone:
+**One-line install (recommended)** — isolated, global `capctl` command:
 
 ```bash
-pipx install git+https://github.com/SimonTarara62/capitalcom-cli.git
+pipx install capitalcom-cli
 ```
 
 Using [uv](https://docs.astral.sh/uv/) instead of pipx:
 
 ```bash
-uv tool install git+https://github.com/SimonTarara62/capitalcom-cli.git
+uv tool install capitalcom-cli
 ```
 
 Plain pip (into the active environment):
 
 ```bash
-pip install git+https://github.com/SimonTarara62/capitalcom-cli.git
+pip install capitalcom-cli
 ```
+
+To get the latest unreleased code instead of the last published release, replace
+the package name `capitalcom-cli` with
+`git+https://github.com/SimonTarara62/capitalcom-cli.git` in any command above.
 
 **From a clone (for development):**
 
