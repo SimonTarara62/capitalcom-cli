@@ -495,6 +495,7 @@ $ capctl trade positions [OPTIONS]
 
 **Options**:
 
+* `-n, --limit INTEGER RANGE`: Show at most N positions.  [x&gt;=1]
 * `--help`: Show this message and exit.
 
 Examples:
@@ -531,6 +532,7 @@ $ capctl trade orders [OPTIONS]
 
 **Options**:
 
+* `-n, --limit INTEGER RANGE`: Show at most N orders.  [x&gt;=1]
 * `--help`: Show this message and exit.
 
 ### `capctl trade confirm`
