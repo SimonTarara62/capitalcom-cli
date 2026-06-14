@@ -187,6 +187,23 @@ class SessionManager:
         response = await self.client.get("/ping")
         return response.json() if response.text else {"status": "ok"}
 
+    async def server_time(self) -> dict[str, Any]:
+        """Return the broker's current server time. No authentication required."""
+        response = await self.client.get("/time")
+        data = response.json() if response.text else {}
+        return data if isinstance(data, dict) else {"serverTime": data}
+
+    async def details(self) -> dict[str, Any]:
+        """Return server-side session details (client id, account id, currency, timezone)."""
+        await self.ensure_logged_in()
+        response = await self.client.get("/session")
+        return response.json() if response.text else {}
+
+    async def encryption_key(self) -> dict[str, Any]:
+        """Fetch the API encryption key and timestamp (encrypted-password login)."""
+        response = await self.client.get("/session/encryptionKey")
+        return response.json() if response.text else {}
+
     async def logout(self) -> None:
         """End session and clear tokens."""
         if not self.tokens:

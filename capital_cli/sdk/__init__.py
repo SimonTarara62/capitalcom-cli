@@ -1,4 +1,4 @@
-"""Capital.com SDK — experimental public API (paths/models stable from 1.0).
+"""Capital.com SDK — public API, stable within 0.x (frozen at 1.0).
 
     from capital_cli.sdk import CapitalComApp, CapitalComConfig, RiskPolicy
 """

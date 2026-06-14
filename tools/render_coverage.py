@@ -50,13 +50,16 @@ def render() -> tuple[str, str]:
                 tested += 1
         rows.append(f"| `{e.id}` | `{e.http}` | {cli_pos} | {cli_neg} | {sdk_pos} | {sdk_neg} |")
     pct = round(100 * tested / applicable) if applicable else 0
+    na_total = sum(1 for e in ENDPOINTS if e.sdk is None) * 2
+    na_note = (" N/A = operation not exposed on that surface "
+               "(CLI-only connectivity primitives)." if na_total else "")
     summary = (f"\n**Coverage: {tested}/{applicable} applicable cells tested "
-               f"({pct}%) across {len(ENDPOINTS)} endpoints.** "
-               "N/A = operation not exposed on that surface (CLI-only connectivity primitives).\n")
+               f"({pct}%) across {len(ENDPOINTS)} endpoints"
+               f" — CLI and SDK, positive and negative.**{na_note}\n")
     table_md = MARKER + "\n\n## Test matrix\n\n" + "\n".join(rows) + "\n" + summary
 
     color = "brightgreen" if pct == 100 else ("yellow" if pct >= 80 else "red")
-    badge = {"schemaVersion": 1, "label": "API coverage",
+    badge = {"schemaVersion": 1, "label": "CLI + SDK coverage",
              "message": f"{tested}/{applicable} ({pct}%)", "color": color}
     return table_md, json.dumps(badge, indent=2) + "\n"
 

@@ -1,4 +1,4 @@
-"""Public configuration type for the Capital.com SDK (experimental until 1.0)."""
+"""Public configuration type for the Capital.com SDK (stable within 0.x)."""
 
 from __future__ import annotations
 

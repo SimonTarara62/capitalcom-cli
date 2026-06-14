@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-14
+
+### Added
+- SDK parity: `app.session.server_time()`, `app.session.details()`, and
+  `app.session.encryption_key()` — the SDK now covers the full Open API surface
+  (coverage matrix 164/164, no N/A). The CLI `session time`/`details`/
+  `encryption-key` commands share these methods.
+
+### Changed
+- The SDK is now positioned as **stable within 0.x** (no breaking changes without
+  a deprecation cycle); dropped the "experimental" label across the README,
+  `docs/sdk.md`, and module docstrings.
+- README and `docs/api-coverage.md` now describe **full** (not "main") Open API
+  coverage, backed by the automated matrix; the coverage badge is relabeled
+  **CLI + SDK coverage**.
+
 ## [0.5.1] - 2026-06-14
 
 ### Added

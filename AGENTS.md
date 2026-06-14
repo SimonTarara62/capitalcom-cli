@@ -7,13 +7,13 @@ Guidance for AI coding agents working in this repository. Humans: start with
 
 `capctl` (distribution name `capitalcom-cli`) is a command-line client for the
 Capital.com Open API, built with Typer + Rich. The CLI is the first-class
-surface, but there is also an **experimental** SDK layer at `capital_cli.sdk`
+surface, but there is also a **stable (0.x)** SDK layer at `capital_cli.sdk`
 (exporting `CapitalComApp`, `CapitalComConfig`, `RiskPolicy`) that embeds the
 same tested broker engine in your own Python — see [docs/sdk.md](docs/sdk.md).
 The SDK import paths and the `capital_cli.core.models` pydantic models are
-documented and intended-stable but may shift between 0.x minors until 1.0. The
-`capital_cli.core.*` internals remain **private** — depend on
-`capital_cli.sdk` / `capital_cli.services`, not on `core`.
+**stable within 0.x** — no breaking changes without a deprecation cycle; breaking
+changes are reserved for a future 1.0. The `capital_cli.core.*` internals remain
+**private** — depend on `capital_cli.sdk` / `capital_cli.services`, not on `core`.
 
 ## Setup & commands
 
@@ -44,7 +44,7 @@ CAPCTL_E2E=1 pytest tests/e2e -m e2e -v
 - `capital_cli/services/` — presentation-free domain services (markets,
   accounts, watchlists, trading, streaming, confirmations) composing `core`;
   the reusable broker engine.
-- `capital_cli/sdk/` — the experimental public facade (`CapitalComApp`,
+- `capital_cli/sdk/` — the public facade (`CapitalComApp`,
   `CapitalComConfig`, `RiskPolicy`).
 - `capital_cli/cli/` — thin Typer wrappers, one app per command group;
   Rich/JSON rendering in `cli/output.py`; the async→exit-code runner in

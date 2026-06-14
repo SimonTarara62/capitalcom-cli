@@ -45,44 +45,38 @@ def test_switch(runner, mock_session):
 
 @pytest.fixture
 def mock_session_client(monkeypatch):
-    """Patch get_client (and get_session_manager) used by the new session commands."""
+    """Patch the SessionManager read methods backing the session commands.
+
+    The CLI now delegates to ``get_session_manager().server_time()`` etc. rather
+    than calling the HTTP client inline, so we stub those passthroughs.
+    """
     sm = MagicMock()
     sm.ensure_logged_in = AsyncMock()
+    sm.server_time = AsyncMock(return_value={})
+    sm.details = AsyncMock(return_value={})
+    sm.encryption_key = AsyncMock(return_value={})
     monkeypatch.setattr("capital_cli.cli.session_cmds.get_session_manager", lambda: sm)
-
-    client = MagicMock()
-    resp = MagicMock()
-    resp.json = MagicMock(return_value={})
-    client.get = AsyncMock(return_value=resp)
-    monkeypatch.setattr("capital_cli.cli.session_cmds.get_client", lambda: client)
-    return client
+    return sm
 
 
 def test_time(runner, mock_session_client):
-    mock_session_client.get.return_value.json.return_value = {"serverTime": 1700000000000}
+    mock_session_client.server_time.return_value = {"serverTime": 1700000000000}
     result = runner.invoke(app, ["--json", "session", "time"])
     assert result.exit_code == 0
     assert json.loads(result.stdout)["serverTime"] == 1700000000000
-    assert mock_session_client.get.await_args.args[0] == "/time"
-
-
-def test_time_wraps_bare_value(runner, mock_session_client):
-    mock_session_client.get.return_value.json.return_value = 1700000000000
-    result = runner.invoke(app, ["--json", "session", "time"])
-    assert result.exit_code == 0
-    assert json.loads(result.stdout)["serverTime"] == 1700000000000
+    mock_session_client.server_time.assert_awaited_once()
 
 
 def test_details(runner, mock_session_client):
-    mock_session_client.get.return_value.json.return_value = {"clientId": "C1", "accountId": "A1"}
+    mock_session_client.details.return_value = {"clientId": "C1", "accountId": "A1"}
     result = runner.invoke(app, ["--json", "session", "details"])
     assert result.exit_code == 0
     assert json.loads(result.stdout)["clientId"] == "C1"
-    assert mock_session_client.get.await_args.args[0] == "/session"
+    mock_session_client.details.assert_awaited_once()
 
 
 def test_encryption_key(runner, mock_session_client):
-    mock_session_client.get.return_value.json.return_value = {"encryptionKey": "K", "timeStamp": 1}
+    mock_session_client.encryption_key.return_value = {"encryptionKey": "K", "timeStamp": 1}
     result = runner.invoke(app, ["session", "encryption-key"])
     assert result.exit_code == 0
-    assert mock_session_client.get.await_args.args[0] == "/session/encryptionKey"
+    mock_session_client.encryption_key.assert_awaited_once()
