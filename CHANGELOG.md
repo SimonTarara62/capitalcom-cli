@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Verified full Capital.com Open API coverage: a canonical endpoint registry
+  (`tests/e2e/endpoints.py`) plus CLI and SDK positive/negative e2e tests for
+  every endpoint, a generated coverage matrix in `docs/api-coverage.md`, and a
+  README **API coverage** badge backed by `docs/coverage-badge.json`.
+
+### Fixed
+- `trade execute-order`: working-order previews now persist the `type`/`level`
+  fields to the state file, so executing a previewed working order from a
+  separate CLI invocation no longer crashes with an internal `'type'` error.
+
 ## [0.5.0] - 2026-06-14
 
 ### Fixed

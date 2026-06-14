@@ -377,6 +377,10 @@ class RiskEngine:
             result.normalized_request["level"] = request.level
             if request.good_till_date:
                 result.normalized_request["good_till_date"] = request.good_till_date
+            # preview_position already persisted this preview WITHOUT the working
+            # order fields; re-save so the CLI's separate execute-order process
+            # (which loads from the state file) sees type/level. (#working-order-exec)
+            self.state.save_preview(result)
 
         return result
 
