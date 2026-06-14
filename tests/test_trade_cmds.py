@@ -197,7 +197,7 @@ def _client_returning(monkeypatch, *json_payloads):
     resp = MagicMock()
     resp.json = MagicMock(side_effect=list(json_payloads) + [json_payloads[-1]] * 10)
     client.get = AsyncMock(return_value=resp)
-    monkeypatch.setattr("capital_cli.cli.trade_cmds.get_client", lambda: client)
+    monkeypatch.setattr("capital_cli.services.confirmations.get_client", lambda: client)
     return client
 
 
@@ -258,7 +258,7 @@ async def test_wait_for_confirmation_surfaces_broker_error(monkeypatch):
 
     client = MagicMock()
     client.get = AsyncMock(side_effect=UpstreamError("not found", status_code=404))
-    monkeypatch.setattr("capital_cli.cli.trade_cmds.get_client", lambda: client)
+    monkeypatch.setattr("capital_cli.services.confirmations.get_client", lambda: client)
 
     with pytest.raises(UpstreamError):
         await _wait_for_confirmation("o_bad", timeout_s=2.0, poll_interval_ms=100)
