@@ -11,6 +11,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - E2E trade lifecycle skips gracefully when the market is not tradeable (#9).
 
 ### Added
+- **Experimental SDK / service layer.** Broker logic now lives in a
+  presentation-free `capital_cli.services` layer (markets, accounts, watchlists,
+  trading, streaming) with a public facade `capital_cli.sdk`
+  (`CapitalComApp`, `CapitalComConfig`, `RiskPolicy`) so other tools (MCP
+  servers, dashboards, automation) can import the tested broker engine directly
+  instead of shelling out to the CLI. Import paths/models are intended-stable but
+  experimental until 1.0 — see [docs/sdk.md](docs/sdk.md). CLI commands are now
+  thin wrappers over these services; behavior is unchanged.
 - Session tokens are cached (0600, env-scoped, ≤10 min) so back-to-back commands
   don't re-login and hit HTTP 429; opt out with `CAP_PERSIST_SESSION=false` (#10).
 - `--limit/-n` on `trade positions` and `trade orders` (#2).
