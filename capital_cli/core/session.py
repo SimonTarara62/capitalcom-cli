@@ -9,6 +9,7 @@ from .config import get_config
 from .errors import SessionError
 from .http_client import get_client
 from .models import SessionStatus, SessionTokens
+from .state import get_state_store
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,37 @@ class SessionManager:
         self.tokens: SessionTokens | None = None
         self.account_id: str | None = None
         self._login_lock = asyncio.Lock()
+        self._state = get_state_store()
+        if self.config.cap_persist_session:
+            self._restore_session()
+
+    def _restore_session(self) -> None:
+        """Adopt cached tokens from the state file if present and not expired."""
+        cached = self._state.load_session(self.config.cap_env.value)
+        if not cached:
+            return
+        tokens = SessionTokens(
+            cst=cached["cst"],
+            x_security_token=cached["x_security_token"],
+            last_used_at=cached["last_used_at"],
+        )
+        if tokens.is_expired():
+            self._state.clear_session()
+            return
+        self.tokens = tokens
+        self.client.session_tokens = tokens
+        self.account_id = cached.get("account_id")
+
+    def _persist_session(self) -> None:
+        if not (self.config.cap_persist_session and self.tokens):
+            return
+        self._state.save_session(
+            env=self.config.cap_env.value,
+            cst=self.tokens.cst,
+            x_security_token=self.tokens.x_security_token,
+            last_used_at=self.tokens.last_used_at.isoformat(),
+            account_id=self.account_id,
+        )
 
     async def _force_relogin(self) -> None:
         """Re-login callback used by the HTTP client on auth expiry."""
@@ -101,6 +133,7 @@ class SessionManager:
                 if target_account and target_account != self.account_id:
                     await self.switch_account(target_account)
 
+                self._persist_session()
                 return response_data
 
             except Exception as e:
@@ -131,6 +164,7 @@ class SessionManager:
 
         # Update stored account ID
         self.account_id = account_id
+        self._persist_session()
 
         return response.json()
 
@@ -164,6 +198,8 @@ class SessionManager:
             self.tokens = None
             self.account_id = None
             self.client.session_tokens = None
+            if self.config.cap_persist_session:
+                self._state.clear_session()
 
     async def ensure_logged_in(self) -> None:
         """Ensure session is active, refresh if needed."""

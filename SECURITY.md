@@ -72,6 +72,18 @@ uses its trimmed stdout as the secret. Properties:
 This keeps secrets out of plaintext files (at-rest hygiene); per the note above,
 it does not make secrets invisible to a same-shell agent.
 
+### Session token caching
+
+By default (`CAP_PERSIST_SESSION=true`) capctl caches the **short-lived**
+Capital.com session tokens (CST / X-SECURITY-TOKEN, valid ≤10 minutes) in the
+state file (`~/.config/capital-cli/state.json`, mode `0600`) so rapid,
+back-to-back commands reuse one login instead of re-authenticating each time
+(which trips Capital.com's login-rate limit and returns HTTP 429). These are
+session tokens, **not** your API key or API password — those are never written
+to the state file. The cache is environment-scoped (a demo session is never
+reused for live) and is cleared on `capctl session logout`. Set
+`CAP_PERSIST_SESSION=false` to keep tokens in-process only.
+
 ## Operating safely
 
 - **Your API key is trading-capable.** Capital.com API keys can place and close
