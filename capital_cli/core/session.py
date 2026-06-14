@@ -42,17 +42,22 @@ class SessionManager:
         cached = self._state.load_session(self.config.cap_env.value)
         if not cached:
             return
-        tokens = SessionTokens(
-            cst=cached["cst"],
-            x_security_token=cached["x_security_token"],
-            last_used_at=cached["last_used_at"],
-        )
-        if tokens.is_expired():
+        try:
+            tokens = SessionTokens(
+                cst=cached["cst"],
+                x_security_token=cached["x_security_token"],
+                last_used_at=cached["last_used_at"],
+            )
+            if tokens.is_expired():
+                self._state.clear_session()
+                return
+            self.tokens = tokens
+            self.client.session_tokens = tokens
+            self.account_id = cached.get("account_id")
+        except Exception:  # noqa: BLE001 - corrupt entry is equivalent to no cached session
+            logger.warning("Discarding corrupt cached session entry")
             self._state.clear_session()
             return
-        self.tokens = tokens
-        self.client.session_tokens = tokens
-        self.account_id = cached.get("account_id")
 
     def _persist_session(self) -> None:
         if not (self.config.cap_persist_session and self.tokens):
@@ -211,6 +216,15 @@ class SessionManager:
         if self.tokens.is_expired():
             logger.info("Session expired, re-logging in")
             await self.login(force=True)
+            return
+
+        # Token is present and live (e.g. restored from cache). login() handles the
+        # target-account switch on its own paths, but a still-valid/restored token
+        # skips login entirely, so reconcile the active account here.
+        target_account = self.config.cap_default_account_id
+        if target_account and target_account != self.account_id:
+            logger.info(f"Reconciling active account to {target_account}")
+            await self.switch_account(target_account)
 
     def get_status(self) -> SessionStatus:
         """Get current session status."""

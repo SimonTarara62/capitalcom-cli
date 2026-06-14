@@ -82,3 +82,55 @@ def test_expired_cached_session_is_ignored_and_cleared(tmp_path, monkeypatch):
     sm = session_mod.get_session_manager()
     assert sm.tokens is None
     assert get_state_store().load_session("demo") is None
+
+
+async def test_ensure_logged_in_reconciles_account_on_restored_session(tmp_path, monkeypatch):
+    """FIX 1: a restored, still-valid session must switch to the requested account."""
+    monkeypatch.setenv("CAPCTL_STATE_FILE", str(tmp_path / "state.json"))
+    monkeypatch.setenv("CAP_PERSIST_SESSION", "true")
+    monkeypatch.setenv("CAP_ENV", "demo")
+    monkeypatch.setenv("CAP_API_KEY", "k")
+    monkeypatch.setenv("CAP_IDENTIFIER", "id@example.com")
+    monkeypatch.setenv("CAP_API_PASSWORD", "pw")
+    monkeypatch.setenv("CAP_DEFAULT_ACCOUNT_ID", "ACC_B")
+    _reset_singletons()
+    from capital_cli.core.state import get_state_store
+    now = datetime.now(timezone.utc).isoformat()
+    get_state_store().save_session(
+        env="demo", cst="C", x_security_token="X", last_used_at=now, account_id="ACC_A"
+    )
+    sm = session_mod.get_session_manager()
+    assert sm.tokens is not None
+    assert sm.tokens.is_expired() is False
+    assert sm.account_id == "ACC_A"
+
+    switched_to: list[str] = []
+
+    async def fake_switch(account_id: str):
+        switched_to.append(account_id)
+        sm.account_id = account_id
+        return {}
+
+    monkeypatch.setattr(sm, "switch_account", fake_switch)
+
+    await sm.ensure_logged_in()
+
+    assert switched_to == ["ACC_B"]
+
+
+def test_corrupt_last_used_at_does_not_brick_cli(tmp_path, monkeypatch):
+    """FIX 2: a corrupt last_used_at must be treated as no cached session, not raise."""
+    monkeypatch.setenv("CAPCTL_STATE_FILE", str(tmp_path / "state.json"))
+    monkeypatch.setenv("CAP_PERSIST_SESSION", "true")
+    monkeypatch.setenv("CAP_ENV", "demo")
+    monkeypatch.setenv("CAP_API_KEY", "k")
+    monkeypatch.setenv("CAP_IDENTIFIER", "id@example.com")
+    monkeypatch.setenv("CAP_API_PASSWORD", "pw")
+    _reset_singletons()
+    from capital_cli.core.state import get_state_store
+    get_state_store().save_session(
+        env="demo", cst="C", x_security_token="X", last_used_at="not-a-date", account_id="ACC1"
+    )
+    sm = session_mod.get_session_manager()
+    assert sm.tokens is None
+    assert get_state_store().load_session("demo") is None
