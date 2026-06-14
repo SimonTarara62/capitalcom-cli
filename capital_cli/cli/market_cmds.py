@@ -22,10 +22,10 @@ def search(
 ) -> None:
     """Search markets by term or EPICs."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         params: dict[str, Any] = {}
         if term:
@@ -52,10 +52,10 @@ def search(
 def get(ctx: typer.Context, epic: str = typer.Argument(..., help="Market EPIC.")) -> None:
     """Get full market details and dealing rules."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         return (await client.get(f"/markets/{epic}")).json()
 
@@ -66,10 +66,10 @@ def get(ctx: typer.Context, epic: str = typer.Argument(..., help="Market EPIC.")
 def nav_root(ctx: typer.Context) -> None:
     """Get the root market-navigation tree."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         return (await client.get("/marketnavigation")).json()
 
@@ -88,10 +88,10 @@ def nav_node(
 ) -> None:
     """Get child nodes/markets under a navigation node."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         params: dict[str, Any] = {}
         if limit is not None:
@@ -116,10 +116,10 @@ def prices(
 ) -> None:
     """Get historical OHLC prices."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         params: dict[str, Any] = {"resolution": resolution, "max": max_candles}
         if from_date:
@@ -140,13 +140,13 @@ def sentiment(
 ) -> None:
     """Get client sentiment (long vs short %) for one or several markets."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
     ids = [m.strip() for m in market_ids.split(",") if m.strip()]
     if not ids:
         raise typer.BadParameter("Provide at least one market ID.")
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         if len(ids) == 1:
             return (await client.get(f"/clientsentiment/{ids[0]}")).json()

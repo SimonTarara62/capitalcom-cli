@@ -78,6 +78,13 @@ class ConfigError(CapitalCLIError):
         super().__init__(ErrorCode.CONFIG_INVALID, message, details)
 
 
+class ConfigMissingError(CapitalCLIError):
+    """Required configuration (credentials) is missing."""
+
+    def __init__(self, message: str):
+        super().__init__(ErrorCode.CONFIG_MISSING, message)
+
+
 class TradingDisabledError(CapitalCLIError):
     """Trading is disabled."""
 

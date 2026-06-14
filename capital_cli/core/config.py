@@ -5,8 +5,10 @@ import os
 from enum import Enum
 from pathlib import Path
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from .errors import ConfigError, ConfigMissingError
 
 
 class CapEnv(str, Enum):
@@ -135,7 +137,21 @@ def get_config() -> Config:
     """Get or lazily build the global config from the resolved env file."""
     global _config
     if _config is None:
-        _config = Config(_env_file=_resolve_env_file())  # type: ignore[call-arg]
+        try:
+            _config = Config(_env_file=_resolve_env_file())  # type: ignore[call-arg]
+        except ValidationError as exc:
+            missing = ", ".join(
+                str(e["loc"][0]).upper() for e in exc.errors() if e.get("type") == "missing"
+            )
+            if missing:
+                hint = (
+                    f"Missing/invalid credentials: {missing}. "
+                    "Set CAP_API_KEY, CAP_IDENTIFIER, CAP_API_PASSWORD (see .env.example), "
+                    "or pass --env-file PATH."
+                )
+                raise ConfigMissingError(hint) from exc
+            hint = f"Invalid configuration: {exc.errors()[0]['msg']}"
+            raise ConfigError(hint) from exc
         _config.setup_logging()
     return _config
 

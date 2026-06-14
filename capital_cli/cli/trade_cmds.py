@@ -82,10 +82,10 @@ def _preview_payload(preview: Any) -> dict[str, Any]:
 def positions(ctx: typer.Context) -> None:
     """List open positions."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         return (await client.get("/positions")).json()
 
@@ -117,10 +117,10 @@ def position(
 ) -> None:
     """Get a single position by deal ID."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         return (await client.get(f"/positions/{deal_id}")).json()
 
@@ -131,10 +131,10 @@ def position(
 def orders(ctx: typer.Context) -> None:
     """List working orders."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         return (await client.get("/workingorders")).json()
 
@@ -169,10 +169,10 @@ def confirm(
 ) -> None:
     """Get (or wait for) a deal confirmation."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        client = get_client()
         await sm.ensure_logged_in()
         if wait:
             return await _wait_for_confirmation(deal_reference, timeout_s=timeout)
@@ -202,11 +202,11 @@ def preview_position(
 ) -> None:
     """Validate a position against risk policy and return a preview_id (no trade)."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    risk = get_risk_engine()
     direction_e = _parse_direction(direction)
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        risk = get_risk_engine()
         await sm.ensure_logged_in()
         request = PreviewPositionRequest(
             epic=epic,
@@ -255,12 +255,12 @@ def preview_order(
 ) -> None:
     """Validate a working order and return a preview_id (no order created)."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    risk = get_risk_engine()
     direction_e = _parse_direction(direction)
     order_type_e = _parse_order_type(order_type)
 
     async def _do() -> dict[str, Any]:
+        sm = get_session_manager()
+        risk = get_risk_engine()
         await sm.ensure_logged_in()
         request = PreviewWorkingOrderRequest(
             epic=epic,
@@ -329,12 +329,12 @@ def execute_position(
 ) -> None:
     """Execute a previewed position (SIDE EFFECT)."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
-    risk = get_risk_engine()
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
+        sm = get_session_manager()
+        client = get_client()
+        risk = get_risk_engine()
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes, preview_id=preview_id)
         normalized = risk.get_preview(preview_id).normalized_request
@@ -363,12 +363,12 @@ def execute_order(
 ) -> None:
     """Execute a previewed working order (SIDE EFFECT)."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
-    risk = get_risk_engine()
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
+        sm = get_session_manager()
+        client = get_client()
+        risk = get_risk_engine()
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes, preview_id=preview_id)
         normalized = risk.get_preview(preview_id).normalized_request
@@ -395,12 +395,12 @@ def close(
 ) -> None:
     """Close an open position (SIDE EFFECT)."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
-    risk = get_risk_engine()
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
+        sm = get_session_manager()
+        client = get_client()
+        risk = get_risk_engine()
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes)
         data = (await client.delete(f"/positions/{deal_id}")).json()
@@ -424,12 +424,12 @@ def cancel(
 ) -> None:
     """Cancel a working order (SIDE EFFECT)."""
     out = ctx.obj.out
-    sm = get_session_manager()
-    client = get_client()
-    risk = get_risk_engine()
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
+        sm = get_session_manager()
+        client = get_client()
+        risk = get_risk_engine()
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes)
         data = (await client.delete(f"/workingorders/{deal_id}")).json()
@@ -479,12 +479,11 @@ def amend_position(
     if not body:
         raise typer.BadParameter("Provide at least one stop/profit option to amend.")
 
-    sm = get_session_manager()
-    client = get_client()
-    risk = get_risk_engine()
-
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
+        sm = get_session_manager()
+        client = get_client()
+        risk = get_risk_engine()
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes)
         data = (await client.put(f"/positions/{deal_id}", json=body)).json()
@@ -530,12 +529,11 @@ def amend_order(
     if not body:
         raise typer.BadParameter("Provide at least one field to amend (level, good-till, stop/profit).")
 
-    sm = get_session_manager()
-    client = get_client()
-    risk = get_risk_engine()
-
     async def _do() -> dict[str, Any]:
         warn_if_live(out)
+        sm = get_session_manager()
+        client = get_client()
+        risk = get_risk_engine()
         await sm.ensure_logged_in()
         risk.validate_execution_guards(confirm=yes)
         data = (await client.put(f"/workingorders/{deal_id}", json=body)).json()
