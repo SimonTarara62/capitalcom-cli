@@ -58,12 +58,6 @@ class TokenBucket:
             # Wait a bit before retrying
             await asyncio.sleep(0.01)
 
-    async def available_tokens(self) -> float:
-        """Get current number of available tokens."""
-        async with self._lock:
-            await self._refill()
-            return self.tokens
-
 
 class RateLimiter:
     """

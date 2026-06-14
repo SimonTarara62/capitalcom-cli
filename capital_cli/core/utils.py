@@ -38,8 +38,7 @@ async def poll_until(
         initial_delay_ms: Initial delay before first poll
 
     Returns:
-        Result if condition met, None if timeout (the last transient error, if
-        any, is available via the logged reason).
+        Result if condition met, None if timeout.
     """
     import time
 
@@ -49,23 +48,18 @@ async def poll_until(
     if initial_delay_ms > 0:
         await asyncio.sleep(initial_delay_ms / 1000.0)
 
-    last_transient: Exception | None = None
     while True:
         elapsed = time.monotonic() - start_time
         if elapsed >= timeout_s:
-            # Attach the last transient reason to the (None) timeout for callers
-            # that inspect it; the public contract still returns None on timeout.
-            poll_until.last_transient_error = last_transient  # type: ignore[attr-defined]
             return None
 
         try:
             result = await fn()
             if condition(result):
-                poll_until.last_transient_error = None  # type: ignore[attr-defined]
                 return result
-        except _TRANSIENT_ERRORS as exc:
+        except _TRANSIENT_ERRORS:
             # Continue polling on transient/network errors only.
-            last_transient = exc
+            pass
 
         # Wait before next attempt
         await asyncio.sleep(poll_interval_ms / 1000.0)

@@ -3,7 +3,24 @@
 import warnings
 from datetime import datetime, timedelta, timezone
 
-from capital_cli.core.models import PreviewResult, SessionTokens
+from capital_cli.core.models import PreviewResult, SessionTokens, _as_utc
+
+
+def test_as_utc_naive_datetime_becomes_aware_utc():
+    """A naive datetime (legacy persisted) is treated as UTC: tzinfo is set to
+    UTC while the wall-clock components stay unchanged."""
+    naive = datetime(2024, 1, 2, 3, 4, 5)
+    assert naive.tzinfo is None
+    result = _as_utc(naive)
+    assert result.tzinfo is not None
+    assert result.utcoffset() == timedelta(0)
+    assert result.replace(tzinfo=None) == naive
+
+
+def test_as_utc_aware_datetime_passes_through_unchanged():
+    aware = datetime(2024, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+    result = _as_utc(aware)
+    assert result == aware
 
 
 def test_session_tokens_default_last_used_is_aware_utc():
