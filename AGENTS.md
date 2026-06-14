@@ -11,9 +11,9 @@ surface, but there is also a **stable (0.x)** SDK layer at `capital_cli.sdk`
 (exporting `CapitalComApp`, `CapitalComConfig`, `RiskPolicy`) that embeds the
 same tested broker engine in your own Python — see [docs/sdk.md](docs/sdk.md).
 The SDK import paths and the `capital_cli.core.models` pydantic models are
-documented and intended-stable but may shift between 0.x minors until 1.0. The
-`capital_cli.core.*` internals remain **private** — depend on
-`capital_cli.sdk` / `capital_cli.services`, not on `core`.
+**stable within 0.x** — no breaking changes without a deprecation cycle; breaking
+changes are reserved for a future 1.0. The `capital_cli.core.*` internals remain
+**private** — depend on `capital_cli.sdk` / `capital_cli.services`, not on `core`.
 
 ## Setup & commands
 
