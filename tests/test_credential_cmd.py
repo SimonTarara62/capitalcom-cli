@@ -40,6 +40,9 @@ def _clean_env(monkeypatch, tmp_path):
     reset_config()
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="uses a POSIX shell command as the CAP_*_CMD helper"
+)
 def test_cmd_output_resolves_secret(monkeypatch):
     monkeypatch.setenv("CAP_API_KEY", "dummy-key")
     monkeypatch.setenv("CAP_IDENTIFIER", "dummy@example.com")
@@ -48,6 +51,9 @@ def test_cmd_output_resolves_secret(monkeypatch):
     assert cfg.cap_api_password == "supersecret"
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="uses a POSIX shell command as the CAP_*_CMD helper"
+)
 def test_failing_cmd_raises_clear_config_error_without_echoing_secret(monkeypatch):
     monkeypatch.setenv("CAP_API_KEY", "dummy-key")
     monkeypatch.setenv("CAP_IDENTIFIER", "dummy@example.com")
@@ -65,6 +71,9 @@ def test_failing_cmd_raises_clear_config_error_without_echoing_secret(monkeypatc
     assert "CAP_API_PASSWORD_CMD" in err.message
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="uses a POSIX shell command as the CAP_*_CMD helper"
+)
 def test_empty_cmd_output_raises_config_error(monkeypatch):
     monkeypatch.setenv("CAP_API_KEY", "dummy-key")
     monkeypatch.setenv("CAP_IDENTIFIER", "dummy@example.com")
@@ -83,6 +92,9 @@ def test_explicit_env_var_takes_precedence_over_cmd(monkeypatch):
     assert cfg.cap_api_password == "explicit-value"
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="uses a POSIX shell command as the CAP_*_CMD helper"
+)
 def test_cmd_output_overrides_dotenv_value(monkeypatch, tmp_path):
     env_file = tmp_path / "creds.env"
     env_file.write_text(
@@ -104,6 +116,9 @@ def test_dotenv_value_used_when_no_cmd_and_no_env(monkeypatch, tmp_path):
     assert cfg.cap_api_password == "from-dotenv"
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="uses a POSIX shell command as the CAP_*_CMD helper"
+)
 def test_helper_does_not_inherit_earlier_resolved_secret(monkeypatch, tmp_path):
     """A later credential helper must NOT see an earlier-resolved CAP_* secret.
 
@@ -133,6 +148,9 @@ def test_helper_does_not_inherit_earlier_resolved_secret(monkeypatch, tmp_path):
     )
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="uses a POSIX shell command as the CAP_*_CMD helper"
+)
 def test_failing_cmd_maps_to_exit_3_via_cli():
     import os
 

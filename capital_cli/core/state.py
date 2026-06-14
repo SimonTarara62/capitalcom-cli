@@ -79,6 +79,30 @@ class StateStore:
         data["order_counter"] = {"date": date, "count": count + 1}
         self._write(data)
 
+    # ----- session tokens (issue #10) -----
+
+    def save_session(self, *, env: str, cst: str, x_security_token: str,
+                     last_used_at: str, account_id: str | None) -> None:
+        data = self._read()
+        data["session"] = {
+            "env": env, "cst": cst, "x_security_token": x_security_token,
+            "last_used_at": last_used_at, "account_id": account_id,
+        }
+        self._write(data)
+
+    def load_session(self, env: str) -> dict[str, Any] | None:
+        sess = self._read().get("session")
+        if not isinstance(sess, dict) or sess.get("env") != env:
+            return None
+        if not sess.get("cst") or not sess.get("x_security_token"):
+            return None
+        return sess
+
+    def clear_session(self) -> None:
+        data = self._read()
+        if data.pop("session", None) is not None:
+            self._write(data)
+
 
 _state_store: StateStore | None = None
 

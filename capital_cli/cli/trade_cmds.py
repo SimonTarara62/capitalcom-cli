@@ -70,6 +70,11 @@ def _mutation_status(data: dict[str, Any]) -> str:
     return "SUBMITTED"
 
 
+def _apply_limit(rows: list[Any], limit: int | None) -> list[Any]:
+    """Return at most `limit` rows (all rows when limit is None)."""
+    return rows if limit is None else rows[:limit]
+
+
 def _parse_direction(direction: str) -> Direction:
     try:
         return Direction(direction.upper())
@@ -106,7 +111,12 @@ def _preview_payload(preview: Any) -> dict[str, Any]:
         "  capctl --json trade positions | jq '[.positions[].position.upl] | add'"
     )
 )
-def positions(ctx: typer.Context) -> None:
+def positions(
+    ctx: typer.Context,
+    limit: int | None = typer.Option(
+        None, "--limit", "-n", min=1, help="Show at most N positions."
+    ),
+) -> None:
     """List open positions."""
     out = ctx.obj.out
 
@@ -114,7 +124,9 @@ def positions(ctx: typer.Context) -> None:
         sm = get_session_manager()
         client = get_client()
         await sm.ensure_logged_in()
-        return (await client.get("/positions")).json()
+        data = (await client.get("/positions")).json()
+        data["positions"] = _apply_limit(data.get("positions", []), limit)
+        return data
 
     data = run(out, _do, label="trade positions")
     if out.json_mode:
@@ -155,7 +167,12 @@ def position(
 
 
 @app.command()
-def orders(ctx: typer.Context) -> None:
+def orders(
+    ctx: typer.Context,
+    limit: int | None = typer.Option(
+        None, "--limit", "-n", min=1, help="Show at most N orders."
+    ),
+) -> None:
     """List working orders."""
     out = ctx.obj.out
 
@@ -163,7 +180,9 @@ def orders(ctx: typer.Context) -> None:
         sm = get_session_manager()
         client = get_client()
         await sm.ensure_logged_in()
-        return (await client.get("/workingorders")).json()
+        data = (await client.get("/workingorders")).json()
+        data["workingOrders"] = _apply_limit(data.get("workingOrders", []), limit)
+        return data
 
     data = run(out, _do, label="trade orders")
     if out.json_mode:
@@ -365,7 +384,7 @@ def _build_broker_request(
         ("profit_distance", "profitDistance"),
         ("profit_amount", "profitAmount"),
     ]:
-        if normalized.get(src):
+        if normalized.get(src) is not None:
             body[dst] = normalized[src]
     return body
 

@@ -35,7 +35,7 @@ if not os.environ.get("CAPCTL_E2E"):
 REPO = Path(__file__).resolve().parents[2]
 ENV_FILE = REPO / ".env"
 STATE_FILE = REPO / ".pytest_cache" / "e2e_state.json"
-EPIC = "BTCUSD"  # trades 24/7, so the suite is not market-hours dependent
+EPIC = "BTCUSD"  # usually 24/7, but the trade lifecycle skips if marketStatus != TRADEABLE (#9)
 
 _ctx: dict = {}  # shared across the ordered tests in this module
 
@@ -85,6 +85,20 @@ def capctl(*args: str, expect_code: int = 0) -> dict:
     # limited to 1 req/s server-side); pace invocations to stay under it.
     time.sleep(1.2)
     return json.loads(proc.stdout) if proc.stdout.strip() else {}
+
+
+def _market_tradeable() -> bool:
+    """True if EPIC is currently tradeable on the demo venue.
+
+    Capital.com reports per-market status in snapshot.marketStatus
+    (TRADEABLE / CLOSED / EDITS_ONLY / ...). Used to skip the trading
+    lifecycle gracefully outside trading hours (issue #9).
+    """
+    try:
+        data = capctl("market", "get", EPIC)
+    except Exception:
+        return False
+    return data.get("snapshot", {}).get("marketStatus") == "TRADEABLE"
 
 
 def test_00_preconditions():
@@ -160,6 +174,9 @@ def test_09_watchlist_lifecycle():
 
 @requires_trading
 def test_10_preview_position():
+    if not _market_tradeable():
+        _ctx["market_closed"] = True
+        pytest.skip(f"{EPIC} not TRADEABLE right now — skipping trade lifecycle (#9)")
     data = capctl("trade", "preview-position", EPIC, "BUY", "0.001")
     assert data.get("all_checks_passed") is True, data.get("checks")
     assert data.get("preview_id")
@@ -169,6 +186,8 @@ def test_10_preview_position():
 @requires_trading
 def test_11_execute_position():
     """Opens a real (minimum-size) BTCUSD position on the DEMO account."""
+    if not _ctx.get("preview_id"):
+        pytest.skip("preview step skipped (market closed) — see #9")
     data = capctl("trade", "execute-position", _ctx["preview_id"], "--yes", "--timeout", "30")
     assert data.get("dealReference"), data
     conf = data.get("confirmation") or {}
@@ -195,6 +214,8 @@ def test_11_execute_position():
 
 @requires_trading
 def test_12_position_visible():
+    if not _ctx.get("deal_id"):
+        pytest.skip("position was not opened (market closed) — see #9")
     data = capctl("trade", "positions")
     ids = [p.get("position", {}).get("dealId") for p in data.get("positions", [])]
     assert _ctx["deal_id"] in ids, ids
@@ -203,6 +224,8 @@ def test_12_position_visible():
 @requires_trading
 def test_13_amend_position():
     """Amend the open position's stop/limit to safe far-from-market levels."""
+    if not _ctx.get("deal_id"):
+        pytest.skip("position was not opened (market closed) — see #9")
     pos = capctl("trade", "position", _ctx["deal_id"])
     level = float(pos["position"]["level"])  # current/open price
     stop = round(level * 0.5, 1)  # far below — won't trigger
@@ -225,6 +248,8 @@ def test_13_amend_position():
 
 @requires_trading
 def test_14_close_position():
+    if not _ctx.get("deal_id"):
+        pytest.skip("position was not opened (market closed) — see #9")
     data = capctl("trade", "close", _ctx["deal_id"], "--yes", "--timeout", "30")
     conf = data.get("confirmation") or {}
     assert conf.get("status") == "ACCEPTED", conf
@@ -232,6 +257,8 @@ def test_14_close_position():
 
 @requires_trading
 def test_15_position_gone():
+    if not _ctx.get("deal_id"):
+        pytest.skip("position was not opened (market closed) — see #9")
     data = capctl("trade", "positions")
     ids = [p.get("position", {}).get("dealId") for p in data.get("positions", [])]
     assert _ctx["deal_id"] not in ids, ids

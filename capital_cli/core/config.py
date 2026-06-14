@@ -70,6 +70,14 @@ class Config(BaseSettings):
 
     # Optional account/session
     cap_default_account_id: str | None = Field(default=None)
+    cap_persist_session: bool = Field(
+        default=True,
+        description=(
+            "Cache the short-lived session tokens in the state file (0600) so "
+            "back-to-back invocations reuse them instead of re-logging in "
+            "(avoids HTTP 429). Set false to disable."
+        ),
+    )
     cap_http_timeout_s: float = Field(default=15.0, gt=0)
     cap_log_level: str = Field(default="WARNING")
     cap_ws_enabled: bool = Field(default=False)

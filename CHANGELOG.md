@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- Broker request no longer drops stop/profit fields that equal `0.0` (#8).
+- E2E trade lifecycle skips gracefully when the market is not tradeable (#9).
+
+### Added
+- Session tokens are cached (0600, env-scoped, ≤10 min) so back-to-back commands
+  don't re-login and hit HTTP 429; opt out with `CAP_PERSIST_SESSION=false` (#10).
+- `--limit/-n` on `trade positions` and `trade orders` (#2).
+- Windows CI job (#7).
+
 ## [0.4.0] - 2026-06-13
 
 ### Added
