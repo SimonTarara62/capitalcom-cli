@@ -97,13 +97,12 @@ def test_every_coverage_cell_points_at_a_real_test():
             assert func in names, f"{endpoint_id}: {file_part} has no {func!r}"
 
 
-@pytest.mark.xfail(reason="coverage cells populated incrementally by Tasks 3-6", strict=False)
 @pytest.mark.parametrize("endpoint_id", [e.id for e in ENDPOINTS])
 def test_matrix_is_complete(endpoint_id):
     # The completeness gate. Every endpoint must have CLI+ and CLI- tested. SDK
     # cells must be tested when the SDK exposes the endpoint, else they are N/A.
-    # This is the completeness gate; xfail(strict=False) keeps CI green until
-    # Tasks 3-6 fill the cells (Task 7 removes the marker to make it a hard gate).
+    # This is now a hard completeness gate: all cells are filled, so every
+    # endpoint must pass (no xfail marker).
     cells = COVERAGE[endpoint_id]
     missing = []
     if cells.cli_pos is None:
