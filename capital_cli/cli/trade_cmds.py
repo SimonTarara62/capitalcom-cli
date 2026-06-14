@@ -365,7 +365,7 @@ def _build_broker_request(
         ("profit_distance", "profitDistance"),
         ("profit_amount", "profitAmount"),
     ]:
-        if normalized.get(src):
+        if normalized.get(src) is not None:
             body[dst] = normalized[src]
     return body
 
