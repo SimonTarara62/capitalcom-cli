@@ -43,7 +43,11 @@ async def _wait_for_confirmation(
 
     result = await poll_until(check, done, timeout_s=timeout_s, poll_interval_ms=poll_interval_ms)
     if result is None:
-        return {"status": "TIMEOUT", "message": f"Confirmation timed out after {timeout_s}s"}
+        reason = getattr(poll_until, "last_transient_error", None)
+        message = f"Confirmation timed out after {timeout_s}s"
+        if reason is not None:
+            message += f" (last transient error: {reason})"
+        return {"status": "TIMEOUT", "message": message}
     if "dealStatus" in result:
         result = {**result, "status": result["dealStatus"]}
     return result

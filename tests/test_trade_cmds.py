@@ -207,6 +207,18 @@ async def test_wait_for_confirmation_polls_past_pending(monkeypatch):
     assert client.get.await_count >= 2
 
 
+async def test_wait_for_confirmation_surfaces_broker_error(monkeypatch):
+    """A non-transient broker error during polling must surface, not become TIMEOUT."""
+    from capital_cli.core.errors import UpstreamError
+
+    client = MagicMock()
+    client.get = AsyncMock(side_effect=UpstreamError("not found", status_code=404))
+    monkeypatch.setattr("capital_cli.cli.trade_cmds.get_client", lambda: client)
+
+    with pytest.raises(UpstreamError):
+        await _wait_for_confirmation("o_bad", timeout_s=2.0, poll_interval_ms=100)
+
+
 async def test_wait_for_confirmation_timeout(monkeypatch):
     _client_returning(monkeypatch, {"dealStatus": "PENDING", "status": "OPEN"})
 
