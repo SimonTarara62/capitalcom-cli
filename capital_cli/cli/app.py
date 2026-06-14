@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json as _json
+import sys
 from pathlib import Path
 
+import click
 import typer
 
 from capital_cli import __version__
@@ -84,5 +87,33 @@ app.add_typer(stream_cmds.app, name="stream")
 
 
 def run_cli() -> None:
-    """Console-script entry point (see pyproject [project.scripts])."""
-    app()
+    """Console-script entry point. Renders Click usage errors as JSON when --json is set."""
+    json_mode = "--json" in sys.argv
+    try:
+        result = app(standalone_mode=False)
+    except click.exceptions.UsageError as exc:
+        if json_mode:
+            sys.stderr.write(
+                _json.dumps(
+                    {
+                        "ok": False,
+                        "error": {
+                            "code": "INVALID_REQUEST",
+                            "message": exc.format_message(),
+                        },
+                    }
+                )
+                + "\n"
+            )
+        else:
+            exc.show()  # default Click rendering to stderr
+        sys.exit(2)
+    except click.exceptions.Abort:
+        sys.exit(130)
+    except (click.exceptions.Exit, SystemExit) as exc:
+        code = getattr(exc, "exit_code", getattr(exc, "code", 0)) or 0
+        sys.exit(code)
+    # standalone_mode=False makes Typer/Click *return* the command's exit code
+    # (from typer.Exit raised inside run()) instead of sys.exit-ing. Propagate it.
+    if isinstance(result, int):
+        sys.exit(result)
