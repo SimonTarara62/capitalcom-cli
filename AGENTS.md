@@ -61,7 +61,10 @@ pydantic-settings · websockets ≥12.
 - **Default to the demo environment (`CAP_ENV=demo`). Never enable
   `CAP_ALLOW_TRADING` in tests and never place live orders.**
 - **Never hardcode or commit API keys, credentials, or `.env`.** Credentials
-  come only from environment variables or a git-ignored `.env`.
+  come only from environment variables, a git-ignored `.env`, or a `CAP_*_CMD`
+  credential-exec helper. An LLM sharing this shell can read any secret the CLI
+  can use — secrecy isn't achievable in that setting; rely on least-privilege
+  keys + the safety layer. See [SECURITY.md](SECURITY.md#using-capctl-with-ai-agents--llms).
 - Trade execution is two-phase: always `trade preview-*` before
   `trade execute-*`. Never add a path that executes without a valid preview.
 - Do not weaken the risk engine (`core/risk.py`) or the trade-size validation to
