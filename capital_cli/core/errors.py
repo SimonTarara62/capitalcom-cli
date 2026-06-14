@@ -191,6 +191,8 @@ class PreviewError(CapitalCLIError):
 # Substrings that, if present in a (lower-cased) key, mark its value as secret.
 # Includes the login `identifier` (an email) and any `email` field so credentials
 # never leak into --verbose/debug logs of the login request body.
+# This list deliberately errs toward over-redaction: it is debug-only and
+# fail-safe, so redacting a harmless field is preferable to leaking a secret.
 _SECRET_KEY_SUBSTRINGS = (
     "password",
     "token",

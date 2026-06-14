@@ -108,6 +108,35 @@ def test_dotenv_value_used_when_no_cmd_and_no_env(monkeypatch, tmp_path):
     assert cfg.cap_api_password == "from-dotenv"
 
 
+def test_helper_does_not_inherit_earlier_resolved_secret(monkeypatch, tmp_path):
+    """A later credential helper must NOT see an earlier-resolved CAP_* secret.
+
+    Credential helpers are a weaker trust boundary (third-party op/vault/pass or a
+    user script) and must never inherit unrelated secrets. CAP_API_KEY is resolved
+    via its _CMD helper first; when the CAP_API_PASSWORD helper runs afterwards it
+    must observe CAP_API_KEY as MISSING (not injected, not ambient).
+    """
+    seen_file = tmp_path / "seen_api_key"
+    monkeypatch.setenv("CAP_IDENTIFIER", "dummy@example.com")
+    # First helper resolves CAP_API_KEY.
+    monkeypatch.setenv("CAP_API_KEY_CMD", "printf supersecret-key")
+    # Second helper records whatever CAP_API_KEY it inherited from its environment.
+    helper = (
+        f"{sys.executable} -c "
+        "\"import os,pathlib;"
+        f"pathlib.Path({str(seen_file)!r}).write_text("
+        "os.environ.get('CAP_API_KEY','MISSING'));"
+        "print('pw-value')\""
+    )
+    monkeypatch.setenv("CAP_API_PASSWORD_CMD", helper)
+    cfg = get_config()
+    assert cfg.cap_api_password == "pw-value"
+    assert cfg.cap_api_key == "supersecret-key"
+    assert seen_file.read_text() == "MISSING", (
+        "password helper inherited the earlier-resolved CAP_API_KEY"
+    )
+
+
 def test_failing_cmd_maps_to_exit_3_via_cli():
     import os
 

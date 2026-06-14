@@ -151,6 +151,11 @@ def _run_credential_cmd(field: str, command: str) -> str:
         raise ConfigError(f"{var} is not a valid command line: {exc}") from exc
     if not argv:
         raise ConfigError(f"{var} is empty.")
+    # Defense in depth: strip every CAP_* var from the helper's environment so a
+    # third-party/user helper (op/vault/pass/script) never inherits an unrelated
+    # CAP_* secret — whether already-resolved-and-injected or merely ambient.
+    # Everything else (PATH, HOME, ...) is preserved so helpers still work.
+    clean_env = {k: v for k, v in os.environ.items() if not k.startswith("CAP_")}
     try:
         result = subprocess.run(
             argv,
@@ -158,6 +163,7 @@ def _run_credential_cmd(field: str, command: str) -> str:
             text=True,
             timeout=_CREDENTIAL_CMD_TIMEOUT_S,
             check=False,
+            env=clean_env,
         )
     except FileNotFoundError as exc:
         raise ConfigError(f"{var} command not found: {argv[0]}") from exc
@@ -188,13 +194,21 @@ def _resolve_credential_cmds() -> None:
     ranks process env vars above the .env file, so the _CMD result overrides a
     value in .env but an explicit real env var still wins (we skip those).
     """
+    # Resolve every helper first, collecting outputs locally; only inject them
+    # into os.environ AFTER the loop. Injecting inside the loop would let a later
+    # helper inherit an earlier-resolved secret via its subprocess environment.
+    resolved: dict[str, str] = {}
     for field in _CREDENTIAL_FIELDS:
         if os.environ.get(field):
-            continue  # explicit env value wins; don't run the command
+            # An explicit env value wins; don't run the command. Note: an empty
+            # string is intentionally treated as unset (falsy) and falls through
+            # to the _CMD helper below.
+            continue
         command = os.environ.get(f"{field}_CMD")
         if not command:
             continue  # fall through to .env / pydantic default
-        os.environ[field] = _run_credential_cmd(field, command)
+        resolved[field] = _run_credential_cmd(field, command)
+    os.environ.update(resolved)
 
 
 _config: Config | None = None
