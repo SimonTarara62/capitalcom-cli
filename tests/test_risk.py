@@ -145,3 +145,94 @@ def test_check_open_position_limit_rejects_at_cap():
             engine.check_open_position_limit(5)  # over cap: reject
     finally:
         cfg.cap_max_open_positions = 3
+
+
+# ----- T8: harden broker dealing-rules parsing (null / non-finite) -----
+
+
+def test_safe_positive_float_coerces_bad_values():
+    from capital_cli.core.risk import _safe_positive_float
+
+    assert _safe_positive_float(None, 0.1) == 0.1
+    assert _safe_positive_float({}, 0.1) == 0.1  # not a number
+    assert _safe_positive_float("nan", 0.1) == 0.1
+    assert _safe_positive_float(float("nan"), 0.1) == 0.1
+    assert _safe_positive_float(float("inf"), 0.1) == 0.1
+    assert _safe_positive_float(-5.0, 0.1) == 0.1  # non-positive
+    assert _safe_positive_float(0.0, 0.1) == 0.1
+    assert _safe_positive_float(2.5, 0.1) == 2.5
+    assert _safe_positive_float("2.5", 0.1) == 2.5
+
+
+async def _preview_with_rules(rules, *, size=1.0):
+    from capital_cli.core.config import get_config
+    from capital_cli.core.models import Direction, PreviewPositionRequest
+
+    cfg = get_config()
+    cfg.cap_allow_trading = True
+    cfg.cap_allowed_epics = "ALL"
+    cfg.cap_max_position_size = 1000.0
+    try:
+        from unittest.mock import AsyncMock
+
+        engine = RiskEngine()
+        engine._get_market_details = AsyncMock(
+            return_value={"dealingRules": rules, "snapshot": {"bid": 2000.0, "offer": 2001.0}}
+        )
+        request = PreviewPositionRequest(epic="GOLD", direction=Direction.BUY, size=size)
+        return await engine.preview_position(request)
+    finally:
+        cfg.cap_allow_trading = False
+        cfg.cap_allowed_epics = ""
+        cfg.cap_max_position_size = 1.0
+
+
+async def test_dealing_rules_value_null_does_not_crash():
+    # minDealSize value is null -> falls back to default, no TypeError.
+    result = await _preview_with_rules(
+        {
+            "minDealSize": {"value": None},
+            "maxDealSize": {"value": 1000.0},
+            "minSizeIncrement": {"value": 0.1},
+        }
+    )
+    assert isinstance(result.all_checks_passed, bool)  # produced a clean result
+
+
+async def test_dealing_rules_null_rule_does_not_crash():
+    # The whole minDealSize rule is null.
+    result = await _preview_with_rules(
+        {
+            "minDealSize": None,
+            "maxDealSize": None,
+            "minSizeIncrement": None,
+        }
+    )
+    assert isinstance(result.all_checks_passed, bool)
+
+
+async def test_dealing_rules_non_finite_increment_does_not_crash():
+    # A non-finite increment must not poison the round(size/increment) math.
+    result = await _preview_with_rules(
+        {
+            "minDealSize": {"value": 0.1},
+            "maxDealSize": {"value": 1000.0},
+            "minSizeIncrement": {"value": float("inf")},
+        }
+    )
+    assert isinstance(result.all_checks_passed, bool)
+
+
+def test_validate_size_guards_non_positive_increment():
+    engine = RiskEngine()
+    # increment <= 0 must not raise ZeroDivision / produce garbage.
+    effective, check = engine._validate_size(
+        1.0, 0.1, 1000.0, 0.0, auto_normalize=False
+    )
+    assert isinstance(check, RiskCheck)
+    assert effective == 1.0
+    assert check.passed is True
+    effective, check = engine._validate_size(
+        1.0, 0.1, 1000.0, -1.0, auto_normalize=False
+    )
+    assert check.passed is True

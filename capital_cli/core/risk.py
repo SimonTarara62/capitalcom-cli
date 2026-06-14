@@ -1,6 +1,7 @@
 """Risk engine and preview cache for trade validation."""
 
 import logging
+import math
 from datetime import datetime, timezone
 from typing import Any
 
@@ -23,6 +24,29 @@ from .models import (
 from .state import get_state_store
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_positive_float(value: Any, default: float) -> float:
+    """Coerce a broker-supplied value to a finite, positive float.
+
+    Returns ``default`` when ``value`` is None/missing, not a real number, or
+    non-finite/non-positive (NaN, inf, <= 0). This keeps malformed dealing-rules
+    from poisoning the size math with TypeError/ValueError/ZeroDivisionError.
+    """
+    try:
+        coerced = float(value)
+    except (TypeError, ValueError):
+        return default
+    if not math.isfinite(coerced) or coerced <= 0:
+        return default
+    return coerced
+
+
+def _extract_rule_value(rules: dict[str, Any], key: str, default: float) -> float:
+    """Pull ``rules[key]["value"]`` defensively (the rule or its value may be null)."""
+    rule = rules.get(key)
+    raw = rule.get("value") if isinstance(rule, dict) else None
+    return _safe_positive_float(raw, default)
 
 
 class RiskEngine:
@@ -106,7 +130,11 @@ class RiskEngine:
                 passed=False,
                 message=f"Size {size} is above the broker maximum {max_size}. Use at most {max_size}.",
             )
-        rounded = round(size / increment) * increment if increment else size
+        # Guard the increment math: a missing/zero/negative/non-finite increment
+        # means "no increment constraint", so the size passes as-is.
+        if not math.isfinite(increment) or increment <= 0:
+            return size, RiskCheck(check="size", passed=True, message=f"Size {size} is valid.")
+        rounded = round(size / increment) * increment
         tol = max(increment * 1e-4, 1e-9)
         if abs(rounded - size) <= tol:
             return size, RiskCheck(check="size", passed=True, message=f"Size {size} is valid.")
@@ -243,11 +271,13 @@ class RiskEngine:
             RiskCheck(check="market_details", passed=True, message="Market details fetched")
         )
 
-        # Extract dealing rules
-        dealing_rules = market_data.get("dealingRules", {})
-        min_deal_size = dealing_rules.get("minDealSize", {}).get("value", 0.1)
-        max_deal_size = dealing_rules.get("maxDealSize", {}).get("value", 1000.0)
-        min_size_increment = dealing_rules.get("minSizeIncrement", {}).get("value", 0.1)
+        # Extract dealing rules (broker values may be null/missing/non-finite)
+        dealing_rules = market_data.get("dealingRules")
+        if not isinstance(dealing_rules, dict):
+            dealing_rules = {}
+        min_deal_size = _extract_rule_value(dealing_rules, "minDealSize", 0.1)
+        max_deal_size = _extract_rule_value(dealing_rules, "maxDealSize", 1000.0)
+        min_size_increment = _extract_rule_value(dealing_rules, "minSizeIncrement", 0.1)
 
         # Check 4: Validate size against broker dealing rules (no silent changes)
         effective_size, size_check = self._validate_size(
