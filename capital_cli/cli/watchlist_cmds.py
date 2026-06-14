@@ -7,17 +7,9 @@ from typing import Any
 import typer
 
 from capital_cli.cli.runner import run
-from capital_cli.core.config import get_config
-from capital_cli.core.errors import ConfirmRequiredError
-from capital_cli.core.http_client import get_client
-from capital_cli.core.session import get_session_manager
+from capital_cli.services.watchlists import WatchlistService
 
 app = typer.Typer(no_args_is_help=True, help="Watchlists: list, create, add, remove.")
-
-
-def _require_confirm(yes: bool) -> None:
-    if get_config().cap_require_explicit_confirm and not yes:
-        raise ConfirmRequiredError()
 
 
 @app.command("list")
@@ -26,10 +18,7 @@ def list_watchlists(ctx: typer.Context) -> None:
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        return (await client.get("/watchlists")).json()
+        return await WatchlistService().list()
 
     data = run(out, _do, label="watchlist list")
     if out.json_mode:
@@ -44,10 +33,7 @@ def get(ctx: typer.Context, watchlist_id: str = typer.Argument(..., help="Watchl
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        await sm.ensure_logged_in()
-        return (await client.get(f"/watchlists/{watchlist_id}")).json()
+        return await WatchlistService().get(watchlist_id)
 
     out.raw(run(out, _do, label="watchlist get"))
 
@@ -62,11 +48,7 @@ def create(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        _require_confirm(yes)
-        await sm.ensure_logged_in()
-        return (await client.post("/watchlists", json={"name": name})).json()
+        return await WatchlistService().create(name, confirm=yes)
 
     out.record(run(out, _do, label="watchlist create"), title="Created watchlist")
 
@@ -82,11 +64,7 @@ def add(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        _require_confirm(yes)
-        await sm.ensure_logged_in()
-        return (await client.put(f"/watchlists/{watchlist_id}", json={"epic": epic})).json()
+        return await WatchlistService().add_market(watchlist_id, epic, confirm=yes)
 
     out.record(run(out, _do, label="watchlist add"), title="Added to watchlist")
 
@@ -102,12 +80,7 @@ def remove(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        _require_confirm(yes)
-        await sm.ensure_logged_in()
-        resp = await client.delete(f"/watchlists/{watchlist_id}/{epic}")
-        return resp.json() if resp.text else {"status": "removed"}
+        return await WatchlistService().remove_market(watchlist_id, epic, confirm=yes)
 
     out.record(run(out, _do, label="watchlist remove"), title="Removed from watchlist")
 
@@ -122,11 +95,6 @@ def delete(
     out = ctx.obj.out
 
     async def _do() -> dict[str, Any]:
-        sm = get_session_manager()
-        client = get_client()
-        _require_confirm(yes)
-        await sm.ensure_logged_in()
-        resp = await client.delete(f"/watchlists/{watchlist_id}")
-        return resp.json() if resp.text else {"status": "deleted"}
+        return await WatchlistService().delete(watchlist_id, confirm=yes)
 
     out.record(run(out, _do, label="watchlist delete"), title="Deleted watchlist")

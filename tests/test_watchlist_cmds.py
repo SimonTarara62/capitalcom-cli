@@ -9,7 +9,7 @@ from capital_cli.cli.app import app
 def mock_wl(monkeypatch):
     sm = MagicMock()
     sm.ensure_logged_in = AsyncMock()
-    monkeypatch.setattr("capital_cli.cli.watchlist_cmds.get_session_manager", lambda: sm)
+    monkeypatch.setattr("capital_cli.services.watchlists.get_session_manager", lambda: sm)
 
     client = MagicMock()
     resp = MagicMock()
@@ -19,7 +19,7 @@ def mock_wl(monkeypatch):
     client.post = AsyncMock(return_value=resp)
     client.put = AsyncMock(return_value=resp)
     client.delete = AsyncMock(return_value=resp)
-    monkeypatch.setattr("capital_cli.cli.watchlist_cmds.get_client", lambda: client)
+    monkeypatch.setattr("capital_cli.services.watchlists.get_client", lambda: client)
     return client
 
 
