@@ -48,9 +48,11 @@ def test_stream_prices_collects_ticks(runner, mock_stream):
         app, ["--json", "stream", "prices", "GOLD", "--duration", "1", "--interval", "0"]
     )
     assert result.exit_code == 0
-    payload = json.loads(result.stdout)
-    assert payload["epics"] == ["GOLD"]
-    assert payload["ticks_received"] >= 1
+    lines = [ln for ln in result.stdout.strip().splitlines() if ln.strip()]
+    assert len(lines) >= 1
+    for ln in lines:
+        obj = json.loads(ln)
+        assert obj["epic"] == "GOLD"
     assert mock_stream.subscribed == ["GOLD"]
 
 
@@ -112,13 +114,56 @@ def test_stream_candles_collects_bars(runner, mock_ohlc_stream):
         app, ["--json", "stream", "candles", "BTCUSD", "--resolution", "MINUTE", "--duration", "1"]
     )
     assert result.exit_code == 0
-    payload = json.loads(result.stdout)
-    assert payload["bars_received"] >= 1
-    assert payload["resolution"] == "MINUTE"
-    assert payload["type"] == "classic"
+    lines = [ln for ln in result.stdout.strip().splitlines() if ln.strip()]
+    assert len(lines) >= 1
+    for ln in lines:
+        obj = json.loads(ln)
+        assert obj["resolution"] == "MINUTE"
+        assert obj["type"] == "classic"
     assert mock_ohlc_stream.ohlc_sub == (["BTCUSD"], ["MINUTE"], "classic")
 
 
 def test_stream_candles_rejects_bad_type(runner, mock_ohlc_stream):
     result = runner.invoke(app, ["stream", "candles", "BTCUSD", "--type", "invalid"])
     assert result.exit_code != 0
+
+
+@pytest.fixture
+def mock_stream_three(monkeypatch):
+    sm = MagicMock()
+    sm.ensure_logged_in = AsyncMock()
+    monkeypatch.setattr("capital_cli.cli.stream_cmds.get_session_manager", lambda: sm)
+
+    ticks = [
+        PriceTick(epic="GOLD", bid=2000.0, offer=2001.0, timestamp="2026-06-12T00:00:00Z"),
+        PriceTick(epic="GOLD", bid=2002.0, offer=2003.0, timestamp="2026-06-12T00:00:01Z"),
+        PriceTick(epic="GOLD", bid=2004.0, offer=2005.0, timestamp="2026-06-12T00:00:02Z"),
+    ]
+    fake = _FakeWS(ticks)
+    monkeypatch.setattr("capital_cli.cli.stream_cmds.get_websocket_client", lambda: fake)
+    return fake
+
+
+def test_stream_prices_ndjson_one_line_per_tick(monkeypatch, mock_stream_three, capsys):
+    """In --json mode each tick is emitted as its own parseable JSON line."""
+    import sys
+
+    from typer.main import get_command
+
+    from capital_cli.cli.app import app as real_app
+
+    # Use a real stdout (not CliRunner's mixed capture) so we can count lines.
+    monkeypatch.setattr(sys, "argv", ["capctl"])
+    try:
+        get_command(real_app)(
+            ["--json", "stream", "prices", "GOLD", "--duration", "1", "--interval", "0"],
+            standalone_mode=False,
+        )
+    except SystemExit:
+        pass
+    captured = capsys.readouterr()
+    lines = [ln for ln in captured.out.strip().splitlines() if ln.strip()]
+    assert len(lines) == 3
+    for ln in lines:
+        obj = json.loads(ln)
+        assert obj["epic"] == "GOLD"

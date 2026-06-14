@@ -37,9 +37,7 @@ class SessionManager:
         """Re-login callback used by the HTTP client on auth expiry."""
         await self.login(force=True)
 
-    async def login(
-        self, *, force: bool = False, account_id: str | None = None
-    ) -> dict[str, Any]:
+    async def login(self, *, force: bool = False, account_id: str | None = None) -> dict[str, Any]:
         """
         Create a new session.
 

@@ -172,9 +172,7 @@ class PreviewResult(BaseModel):
     checks: list[RiskCheck] = Field(..., description="Risk checks performed")
     all_checks_passed: bool = Field(..., description="All checks passed")
     estimated_entry: float | None = Field(default=None, description="Estimated entry price")
-    estimated_risk_notes: str | None = Field(
-        default=None, description="Risk estimation notes"
-    )
+    estimated_risk_notes: str | None = Field(default=None, description="Risk estimation notes")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     def is_expired(self, ttl_seconds: int = 120) -> bool:

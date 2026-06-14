@@ -23,8 +23,10 @@ def _ms_to_iso(ms: Any) -> str:
     if ms is None:
         return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     try:
-        return datetime.fromtimestamp(float(ms) / 1000, tz=timezone.utc).isoformat().replace(
-            "+00:00", "Z"
+        return (
+            datetime.fromtimestamp(float(ms) / 1000, tz=timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z")
         )
     except (TypeError, ValueError, OSError, OverflowError):
         return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -319,9 +321,7 @@ class WebSocketClient:
                             await self.subscribe_ohlc(*params)
                         logger.info("Reconnection successful")
                     else:
-                        logger.error(
-                            f"Max reconnection attempts ({reconnect_attempts}) reached"
-                        )
+                        logger.error(f"Max reconnection attempts ({reconnect_attempts}) reached")
                         raise UpstreamError(
                             "WebSocket connection lost and reconnection failed"
                         ) from None
@@ -389,7 +389,7 @@ class WebSocketClient:
                         bid=float(payload["bid"]),
                         offer=float(payload["ofr"]),
                         timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                        change_percent=payload.get("changePercent")
+                        change_percent=payload.get("changePercent"),
                     )
 
             # Heartbeat or other message types
@@ -400,9 +400,7 @@ class WebSocketClient:
             return None
 
     async def stream(
-        self,
-        duration: float = 300.0,
-        reconnect_attempts: int = 3
+        self, duration: float = 300.0, reconnect_attempts: int = 3
     ) -> AsyncIterator[PriceTick]:
         """
         Stream price updates.
@@ -441,10 +439,7 @@ class WebSocketClient:
                     remaining = duration - elapsed
                     timeout = min(remaining, 10.0)  # Max 10s wait per message
 
-                    message = await asyncio.wait_for(
-                        self._ws.recv(),
-                        timeout=timeout
-                    )
+                    message = await asyncio.wait_for(self._ws.recv(), timeout=timeout)
 
                     # Parse and yield price tick
                     tick = self._parse_message(message)
@@ -459,9 +454,11 @@ class WebSocketClient:
                     # Connection lost, attempt reconnection
                     if reconnect_count < reconnect_attempts:
                         reconnect_count += 1
-                        logger.warning(f"WebSocket disconnected, reconnecting ({reconnect_count}/{reconnect_attempts})")
+                        logger.warning(
+                            f"WebSocket disconnected, reconnecting ({reconnect_count}/{reconnect_attempts})"
+                        )
 
-                        await asyncio.sleep(2 ** reconnect_count)  # Exponential backoff
+                        await asyncio.sleep(2**reconnect_count)  # Exponential backoff
 
                         # Reconnect and resubscribe
                         epics_to_restore = list(self._subscribed_epics)
@@ -472,7 +469,9 @@ class WebSocketClient:
                         logger.info("Reconnection successful")
                     else:
                         logger.error(f"Max reconnection attempts ({reconnect_attempts}) reached")
-                        raise UpstreamError("WebSocket connection lost and reconnection failed") from None
+                        raise UpstreamError(
+                            "WebSocket connection lost and reconnection failed"
+                        ) from None
 
         finally:
             # Cleanup: unsubscribe from all EPICs

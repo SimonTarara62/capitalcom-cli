@@ -43,9 +43,7 @@ def _version_callback(value: bool) -> None:
 @app.callback()
 def main(
     ctx: typer.Context,
-    json_output: bool = typer.Option(
-        False, "--json", help="Emit raw JSON instead of tables."
-    ),
+    json_output: bool = typer.Option(False, "--json", help="Emit raw JSON instead of tables."),
     env_file: Path | None = typer.Option(
         None, "--env-file", help="Path to a .env credentials file."
     ),

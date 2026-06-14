@@ -254,7 +254,17 @@ def test_amend_position_with_yes(runner, mock_trade, monkeypatch):
     mock_trade.put.return_value.json.return_value = {"dealReference": "o_a"}
     result = runner.invoke(
         app,
-        ["trade", "amend-position", "D1", "--stop-level", "100", "--profit-level", "200", "--yes", "--no-wait"],
+        [
+            "trade",
+            "amend-position",
+            "D1",
+            "--stop-level",
+            "100",
+            "--profit-level",
+            "200",
+            "--yes",
+            "--no-wait",
+        ],
     )
     assert result.exit_code == 0
     assert mock_trade.put.await_args.args[0] == "/positions/D1"
@@ -266,11 +276,24 @@ def test_amend_order_with_yes(runner, mock_trade, monkeypatch):
     mock_trade.put.return_value.json.return_value = {"dealReference": "o_b"}
     result = runner.invoke(
         app,
-        ["trade", "amend-order", "D2", "--level", "2300", "--good-till", "2026-07-01T00:00:00", "--yes", "--no-wait"],
+        [
+            "trade",
+            "amend-order",
+            "D2",
+            "--level",
+            "2300",
+            "--good-till",
+            "2026-07-01T00:00:00",
+            "--yes",
+            "--no-wait",
+        ],
     )
     assert result.exit_code == 0
     assert mock_trade.put.await_args.args[0] == "/workingorders/D2"
-    assert mock_trade.put.await_args.kwargs["json"] == {"level": 2300.0, "goodTillDate": "2026-07-01T00:00:00"}
+    assert mock_trade.put.await_args.kwargs["json"] == {
+        "level": 2300.0,
+        "goodTillDate": "2026-07-01T00:00:00",
+    }
 
 
 def test_amend_order_no_fields_is_usage_error(runner, mock_trade, monkeypatch):

@@ -200,7 +200,9 @@ def preview_position(
     guaranteed_stop: bool = typer.Option(False, "--guaranteed-stop"),
     trailing_stop: bool = typer.Option(False, "--trailing-stop"),
     auto_normalize_size: bool = typer.Option(
-        False, "--auto-normalize-size", help="Round size to the broker increment instead of failing."
+        False,
+        "--auto-normalize-size",
+        help="Round size to the broker increment instead of failing.",
     ),
 ) -> None:
     """Validate a position against risk policy and return a preview_id (no trade)."""
@@ -253,7 +255,9 @@ def preview_order(
     profit_level: float | None = typer.Option(None, "--profit-level"),
     good_till_date: str | None = typer.Option(None, "--good-till", help="Expiry ISO 8601."),
     auto_normalize_size: bool = typer.Option(
-        False, "--auto-normalize-size", help="Round size to the broker increment instead of failing."
+        False,
+        "--auto-normalize-size",
+        help="Round size to the broker increment instead of failing.",
     ),
 ) -> None:
     """Validate a working order and return a preview_id (no order created)."""
@@ -292,7 +296,9 @@ def preview_order(
 # ----- Execute (side effects, guarded) -----
 
 
-def _build_broker_request(normalized: dict[str, Any], *, include_order_fields: bool) -> dict[str, Any]:
+def _build_broker_request(
+    normalized: dict[str, Any], *, include_order_fields: bool
+) -> dict[str, Any]:
     body: dict[str, Any] = {
         "epic": normalized["epic"],
         "direction": normalized["direction"],
@@ -533,7 +539,9 @@ def amend_order(
         if value is not None:
             body[key] = value
     if not body:
-        raise typer.BadParameter("Provide at least one field to amend (level, good-till, stop/profit).")
+        raise typer.BadParameter(
+            "Provide at least one field to amend (level, good-till, stop/profit)."
+        )
 
     async def _do() -> dict[str, Any]:
         warn_if_live(out)

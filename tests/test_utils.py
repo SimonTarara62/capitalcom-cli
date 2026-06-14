@@ -14,9 +14,7 @@ async def test_poll_until_propagates_non_transient_error():
         raise UpstreamError("broker rejected", status_code=400)
 
     with pytest.raises(UpstreamError):
-        await poll_until(
-            fn, lambda r: True, timeout_s=2.0, poll_interval_ms=50, initial_delay_ms=0
-        )
+        await poll_until(fn, lambda r: True, timeout_s=2.0, poll_interval_ms=50, initial_delay_ms=0)
 
 
 async def test_poll_until_swallows_transient_then_times_out():

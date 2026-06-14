@@ -205,13 +205,19 @@ def test_13_amend_position():
     """Amend the open position's stop/limit to safe far-from-market levels."""
     pos = capctl("trade", "position", _ctx["deal_id"])
     level = float(pos["position"]["level"])  # current/open price
-    stop = round(level * 0.5, 1)             # far below — won't trigger
-    profit = round(level * 1.5, 1)           # far above — won't trigger
+    stop = round(level * 0.5, 1)  # far below — won't trigger
+    profit = round(level * 1.5, 1)  # far above — won't trigger
     data = capctl(
-        "trade", "amend-position", _ctx["deal_id"],
-        "--stop-level", str(stop),
-        "--profit-level", str(profit),
-        "--yes", "--timeout", "30",
+        "trade",
+        "amend-position",
+        _ctx["deal_id"],
+        "--stop-level",
+        str(stop),
+        "--profit-level",
+        str(profit),
+        "--yes",
+        "--timeout",
+        "30",
     )
     conf = data.get("confirmation") or {}
     assert conf.get("status") == "ACCEPTED", conf

@@ -128,6 +128,7 @@ def test_parse_ohlc_infinite_timestamp_does_not_raise():
     result = client._parse_ohlc(msg)  # must not raise
     # With a fallback timestamp the bar parses fine; the point is no exception escaped.
     from capital_cli.core.models import OHLCBar
+
     assert result is None or isinstance(result, OHLCBar)
 
 

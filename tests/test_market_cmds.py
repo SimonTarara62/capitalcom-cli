@@ -82,7 +82,9 @@ def test_sentiment_batch(runner, mock_market):
 
 def test_nav_node_limit(runner, mock_market):
     mock_market.get.return_value.json.return_value = {"nodes": []}
-    result = runner.invoke(app, ["--json", "market", "nav-node", "hierarchy_v1.commodities", "--limit", "10"])
+    result = runner.invoke(
+        app, ["--json", "market", "nav-node", "hierarchy_v1.commodities", "--limit", "10"]
+    )
     assert result.exit_code == 0
     assert mock_market.get.await_args.args[0] == "/marketnavigation/hierarchy_v1.commodities"
     assert mock_market.get.await_args.kwargs["params"] == {"limit": 10}

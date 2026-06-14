@@ -877,6 +877,9 @@ $ capctl stream [OPTIONS] COMMAND [ARGS]...
 
 Stream live bid/offer prices.
 
+With --json, emits NDJSON: one compact JSON object per tick to stdout as it
+arrives (flushed per line), suitable for an agent/script watch-loop.
+
 **Usage**:
 
 ```console
@@ -919,6 +922,9 @@ $ capctl stream alerts [OPTIONS] EPIC LEVEL
 
 Stream live price snapshots for currently open positions.
 
+With --json, emits NDJSON: one compact JSON object per snapshot to stdout as
+it arrives (flushed per line).
+
 **Usage**:
 
 ```console
@@ -934,6 +940,9 @@ $ capctl stream portfolio [OPTIONS]
 ### `capctl stream candles`
 
 Stream live OHLC candlesticks.
+
+With --json, emits NDJSON: one compact JSON object per bar to stdout as it
+arrives (flushed per line).
 
 **Usage**:
 
