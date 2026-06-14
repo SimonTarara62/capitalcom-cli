@@ -23,7 +23,11 @@ from typing import Any
 from capital_cli.core.audit import audit_mutation
 from capital_cli.core.config import get_config
 from capital_cli.core.http_client import get_client
-from capital_cli.core.models import PreviewResult
+from capital_cli.core.models import (
+    PreviewPositionRequest,
+    PreviewResult,
+    PreviewWorkingOrderRequest,
+)
 from capital_cli.core.risk import get_risk_engine
 from capital_cli.core.session import get_session_manager
 from capital_cli.services.confirmations import (
@@ -68,14 +72,14 @@ class TradingService:
 
     # ----- Preview (no side effects) -----
 
-    async def preview_position(self, request: Any) -> PreviewResult:
+    async def preview_position(self, request: PreviewPositionRequest) -> PreviewResult:
         """Validate a position against risk policy (no trade). Delegates to risk engine."""
         sm = get_session_manager()
         risk = get_risk_engine()
         await sm.ensure_logged_in()
         return await risk.preview_position(request)
 
-    async def preview_working_order(self, request: Any) -> PreviewResult:
+    async def preview_working_order(self, request: PreviewWorkingOrderRequest) -> PreviewResult:
         """Validate a working order against risk policy (no order). Delegates to risk engine."""
         sm = get_session_manager()
         risk = get_risk_engine()

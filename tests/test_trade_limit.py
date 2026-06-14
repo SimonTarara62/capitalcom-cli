@@ -1,6 +1,6 @@
 """Issue #2: --limit truncates positions/orders output."""
 
-from capital_cli.cli.trade_cmds import _apply_limit
+from capital_cli.services.trading import _apply_limit
 
 
 def test_apply_limit_truncates():

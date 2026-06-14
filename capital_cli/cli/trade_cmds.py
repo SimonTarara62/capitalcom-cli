@@ -24,11 +24,6 @@ from capital_cli.services.trading import TradingService
 app = typer.Typer(no_args_is_help=True, help="Trading: positions, orders, preview, execute.")
 
 
-def _apply_limit(rows: list[Any], limit: int | None) -> list[Any]:
-    """Return at most `limit` rows (all rows when limit is None)."""
-    return rows if limit is None else rows[:limit]
-
-
 def _parse_direction(direction: str) -> Direction:
     try:
         return Direction(direction.upper())
