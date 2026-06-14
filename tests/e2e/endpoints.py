@@ -69,10 +69,61 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("stream.portfolio", "WS quotes (position epics)", "stream portfolio", "stream.portfolio", "stream", False),
 ]
 
-# The published Capital.com surface, as (HTTP/WS) strings. The cross-check asserts
-# {e.http for e in ENDPOINTS} == OFFICIAL_SURFACE. Update BOTH together only when
-# Capital.com publishes a new endpoint (then add the command/method + tests).
-OFFICIAL_SURFACE: set[str] = {e.http for e in ENDPOINTS}
+# The published Capital.com Open API surface: every REST endpoint + WS destination
+# the registry claims to cover, authored INDEPENDENTLY of ENDPOINTS so the
+# cross-check (test_registry_matches_official_surface) actually catches drift —
+# an endpoint added to/removed from one list but not the other fails the test.
+# Excludes the two "(local)" preview operations (client-side risk-engine, not API
+# calls). Update this set ONLY when Capital.com publishes/removes an endpoint.
+OFFICIAL_SURFACE: set[str] = {
+    # session
+    "GET /time",
+    "GET /ping",
+    "GET /session",
+    "GET /session/encryptionKey",
+    "POST /session",
+    "PUT /session",
+    "DELETE /session",
+    # account
+    "GET /accounts",
+    "GET /accounts/preferences",
+    "PUT /accounts/preferences",
+    "GET /history/activity",
+    "GET /history/transactions",
+    "POST /accounts/topUp",
+    # market
+    "GET /markets",
+    "GET /markets/{epic}",
+    "GET /marketnavigation",
+    "GET /marketnavigation/{id}",
+    "GET /prices/{epic}",
+    "GET /clientsentiment",
+    # positions
+    "GET /positions",
+    "GET /positions/{dealId}",
+    "POST /positions",
+    "PUT /positions/{dealId}",
+    "DELETE /positions/{dealId}",
+    # working orders
+    "GET /workingorders",
+    "POST /workingorders",
+    "PUT /workingorders/{dealId}",
+    "DELETE /workingorders/{dealId}",
+    # confirms
+    "GET /confirms/{dealRef}",
+    # watchlists
+    "GET /watchlists",
+    "POST /watchlists",
+    "GET /watchlists/{id}",
+    "PUT /watchlists/{id}",
+    "DELETE /watchlists/{id}/{epic}",
+    "DELETE /watchlists/{id}",
+    # streaming (WebSocket)
+    "WS marketData.subscribe",
+    "WS OHLCMarketData.subscribe",
+    "WS quotes (level cross)",
+    "WS quotes (position epics)",
+}
 
 
 @dataclass
@@ -92,4 +143,7 @@ COVERAGE: dict[str, Cells] = {e.id: Cells() for e in ENDPOINTS}
 
 def sdk_supported(endpoint_id: str) -> bool:
     """True if the SDK exposes this endpoint (so SDK cells are applicable)."""
-    return next(e for e in ENDPOINTS if e.id == endpoint_id).sdk is not None
+    match = next((e for e in ENDPOINTS if e.id == endpoint_id), None)
+    if match is None:
+        raise KeyError(f"unknown endpoint id: {endpoint_id!r}")
+    return match.sdk is not None
