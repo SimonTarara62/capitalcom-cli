@@ -33,9 +33,14 @@ It opens and closes a minimum-size BTCUSD position on the **demo** account.
 
 ## Project layout
 
-- `capital_cli/core/` — API client, session, risk engine, models, streaming.
-  All safety rules live here.
-- `capital_cli/cli/` — Typer commands. Thin: parse → call core → render.
+- `capital_cli/core/` — low-level primitives: API client, session, rate limiter,
+  risk engine, models, streaming, state. All safety rules live here (private).
+- `capital_cli/services/` — presentation-free domain services (markets, accounts,
+  watchlists, trading, streaming, confirmations) composing `core`.
+- `capital_cli/sdk/` — the experimental public facade (`CapitalComApp`,
+  `CapitalComConfig`, `RiskPolicy`).
+- `capital_cli/cli/` — Typer commands. Thin: parse → call a service → render; the
+  `cli/` layer never calls the broker API directly.
 - `tests/` — offline unit tests (mocked HTTP/WS); `tests/e2e/` — opt-in live suite.
 
 ## Conventions

@@ -117,3 +117,56 @@ def test_aenter_logs_in_aexit_no_logout(monkeypatch):
     assert calls["login"] == 1
     assert calls["logout"] == 0   # __aexit__ must NOT logout (preserve cached session #10)
     assert calls["close"] == 1
+
+
+def test_sdk_watchlist_create_requires_confirm(monkeypatch):
+    # An SDK consumer (MCP server / dashboard) calling a mutation service method
+    # without confirm=True must hit the REAL mutation guard and get a confirm
+    # error BEFORE any HTTP — never a silent write. This exercises the real
+    # RiskEngine + real default config (cap_require_explicit_confirm defaults to
+    # True, cap_dry_run defaults to False), not an injected fake risk engine.
+    monkeypatch.setenv("CAP_ENV", "demo")
+    monkeypatch.setenv("CAP_API_KEY", "k")
+    monkeypatch.setenv("CAP_IDENTIFIER", "id@example.com")
+    monkeypatch.setenv("CAP_API_PASSWORD", "pw")
+    from capital_cli.core.config import reset_config
+    from capital_cli.core.risk import reset_risk_engine
+
+    reset_config()
+    reset_risk_engine()
+
+    import asyncio
+
+    from capital_cli.core.errors import ConfirmRequiredError
+    from capital_cli.services.watchlists import WatchlistService
+
+    calls = []
+
+    class _FakeClient:
+        async def post(self, *a, **k):
+            calls.append(("post", a, k))
+
+    class _FakeSession:
+        async def ensure_logged_in(self):
+            return None
+
+    monkeypatch.setattr("capital_cli.services.watchlists.get_client", lambda: _FakeClient())
+    monkeypatch.setattr(
+        "capital_cli.services.watchlists.get_session_manager", lambda: _FakeSession()
+    )
+
+    async def _run():
+        try:
+            await WatchlistService().create("x", confirm=False)
+            raise AssertionError("expected a confirm-required error")
+        except ConfirmRequiredError:
+            pass
+        assert calls == []  # no HTTP attempted
+
+    try:
+        asyncio.run(_run())
+    finally:
+        # The real RiskEngine binds to this test's config; reset so later tests
+        # rebuild from their own env (test isolation).
+        reset_risk_engine()
+        reset_config()

@@ -41,9 +41,11 @@ See [practical use cases](docs/use-cases.md) for worked, copy-pasteable scenario
 tested broker engine is also embeddable as an **experimental** Python SDK — see
 [Use as a library](#use-as-a-library-experimental) and [docs/sdk.md](docs/sdk.md).
 The `capital_cli.core.*` internals remain private and may change between releases.
-The CLI itself is short-lived: each command runs as its own process and may create
-its own API session. `capctl session login` is mainly a connectivity/account check;
-session tokens are not persisted between separate invocations.
+The CLI itself is short-lived: each command runs as its own process. By default
+(`CAP_PERSIST_SESSION=true`) the short-lived session tokens are cached so
+back-to-back commands reuse one login instead of re-authenticating each time
+(which can trip Capital.com's login-rate limit and return HTTP 429); `capctl
+session login` is mainly a connectivity/account check.
 
 ## Features
 
@@ -54,6 +56,8 @@ session tokens are not persisted between separate invocations.
 - **Real-time streaming** — live price tables, price-level alerts, and portfolio snapshots over WebSocket
 - **Demo and live environments** — defaults to demo; live requires explicit opt-in
 - **Built-in rate limiting** — client-side token buckets respect Capital.com's 10 req/s global, 1 req/s session, and trading-burst limits
+- **Session-token caching** — back-to-back commands reuse one login instead of re-authenticating (avoids HTTP 429); on by default, opt out with `CAP_PERSIST_SESSION=false`
+- **Embeddable SDK (experimental)** — the same broker engine ships as an async Python library; see [Use as a library](#use-as-a-library-experimental)
 
 ## Installation
 
@@ -144,6 +148,7 @@ Main settings and their defaults:
 | `CAP_REQUIRE_EXPLICIT_CONFIRM` | `true` | Mutations need `--yes` |
 | `CAP_DRY_RUN` | `false` | Block all executions regardless of other flags |
 | `CAP_DEFAULT_ACCOUNT_ID` | (none) | Account selected after login |
+| `CAP_PERSIST_SESSION` | `true` | Cache short-lived session tokens in the state file so back-to-back commands reuse one login (avoids HTTP 429); set `false` to keep tokens in-process only |
 | `CAP_HTTP_TIMEOUT_S` | `15` | HTTP timeout |
 | `CAP_LOG_LEVEL` | `WARNING` | `DEBUG` … `CRITICAL` |
 | `CAP_WS_ENABLED` | `false` | Required for `capctl stream …` |
@@ -243,9 +248,9 @@ capctl account topup 1000 --yes                 # demo environment only
 Read-only:
 
 ```bash
-capctl trade positions
+capctl trade positions [--limit 10]              # -n/--limit caps rows shown
 capctl trade position DEAL_ID
-capctl trade orders
+capctl trade orders [--limit 10]                 # -n/--limit caps rows shown
 capctl trade confirm DEAL_REFERENCE [--wait --timeout 30]
 ```
 

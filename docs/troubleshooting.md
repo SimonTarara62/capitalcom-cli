@@ -58,7 +58,11 @@ confirmation message from the broker (shown in the output) says why.
 ### HTTP 429: error.too-many.requests on login
 Capital.com limits how often you can create sessions. Wait a couple of
 minutes and try again. Scripts that fire many capctl commands in a tight
-loop should pause ~1 second between them.
+loop should pause ~1 second between them. By default capctl caches the
+short-lived session token (`CAP_PERSIST_SESSION=true`) so back-to-back
+commands reuse one login instead of re-authenticating each time, which is the
+main mitigation for this error; keep it enabled (set `CAP_PERSIST_SESSION=false`
+only if you need in-process-only tokens).
 
 ### `WebSocket streaming is disabled`
 Set `CAP_WS_ENABLED=true` in `.env`. Streaming also requires valid login
@@ -69,10 +73,11 @@ Quiet markets tick rarely outside their trading hours. Try `BTCUSD`, which
 trades around the clock.
 
 ### Where is my state stored?
-Trade previews and the daily order counter persist in
-`~/.config/capital-cli/state.json` (override with `CAPCTL_STATE_FILE`) so
-they survive between commands. Deleting the file is safe (you'll just lose
-unexecuted previews).
+Trade previews, the daily order counter, and (by default) the cached
+short-lived session token persist in `~/.config/capital-cli/state.json`
+(mode `0600`, override with `CAPCTL_STATE_FILE`) so they survive between
+commands. Deleting the file is safe (you'll just lose unexecuted previews
+and have to log in again). Your API key/password are never written there.
 
 ## Still stuck?
 
