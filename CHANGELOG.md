@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-06-14
+
 ### Added
 - Verified full Capital.com Open API coverage: a canonical endpoint registry
   (`tests/e2e/endpoints.py`) plus CLI and SDK positive/negative e2e tests for
