@@ -80,7 +80,7 @@ async def test_get_hits_epic_path(wired):
 async def test_prices_hits_prices_endpoint(wired):
     fake, _ = wired()
     await MarketService().prices(
-        "GOLD", resolution="HOUR", max=10, from_date="2024-01-01", to_date="2024-01-02"
+        "GOLD", resolution="HOUR", max_candles=10, from_date="2024-01-01", to_date="2024-01-02"
     )
     path, kw = fake.calls[0]
     assert path == "/prices/GOLD"
@@ -94,7 +94,7 @@ async def test_prices_hits_prices_endpoint(wired):
 
 async def test_prices_omits_unset_dates(wired):
     fake, _ = wired()
-    await MarketService().prices("GOLD", resolution="MINUTE_15", max=200)
+    await MarketService().prices("GOLD", resolution="MINUTE_15", max_candles=200)
     assert fake.calls[0][1]["params"] == {"resolution": "MINUTE_15", "max": 200}
 
 

@@ -29,9 +29,7 @@ class MarketService:
         if epics:
             params["epics"] = epics
         data = (await client.get("/markets", params=params)).json()
-        if "markets" in data and len(data["markets"]) > limit:
-            data["markets"] = data["markets"][:limit]
-        return data
+        return {**data, "markets": data.get("markets", [])[:limit]}
 
     async def get(self, epic: str) -> dict[str, Any]:
         """Get full market details and dealing rules for an EPIC."""
@@ -44,14 +42,14 @@ class MarketService:
         epic: str,
         *,
         resolution: str = "MINUTE_15",
-        max: int = 200,
+        max_candles: int = 200,
         from_date: str | None = None,
         to_date: str | None = None,
     ) -> dict[str, Any]:
         """Get historical OHLC prices for an EPIC."""
         await get_session_manager().ensure_logged_in()
         client = get_client()
-        params: dict[str, Any] = {"resolution": resolution, "max": max}
+        params: dict[str, Any] = {"resolution": resolution, "max": max_candles}
         if from_date:
             params["from"] = from_date
         if to_date:

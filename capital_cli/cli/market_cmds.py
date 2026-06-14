@@ -97,7 +97,7 @@ def prices(
         return await MarketService().prices(
             epic,
             resolution=resolution,
-            max=max_candles,
+            max_candles=max_candles,
             from_date=from_date,
             to_date=to_date,
         )
