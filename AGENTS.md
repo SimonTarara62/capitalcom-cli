@@ -6,9 +6,14 @@ Guidance for AI coding agents working in this repository. Humans: start with
 ## What this is
 
 `capctl` (distribution name `capitalcom-cli`) is a command-line client for the
-Capital.com Open API, built with Typer + Rich. It is a **CLI application, not a
-stable Python SDK** — the internal `capital_cli.*` modules may change between
-releases without notice.
+Capital.com Open API, built with Typer + Rich. The CLI is the first-class
+surface, but there is also an **experimental** SDK layer at `capital_cli.sdk`
+(exporting `CapitalComApp`, `CapitalComConfig`, `RiskPolicy`) that embeds the
+same tested broker engine in your own Python — see [docs/sdk.md](docs/sdk.md).
+The SDK import paths and the `capital_cli.core.models` pydantic models are
+documented and intended-stable but may shift between 0.x minors until 1.0. The
+`capital_cli.core.*` internals remain **private** — depend on
+`capital_cli.sdk` / `capital_cli.services`, not on `core`.
 
 ## Setup & commands
 
@@ -79,3 +84,7 @@ pydantic-settings · websockets ≥12.
 
 - A sibling **MCP server** exposes the same Capital.com API as agent tools; this
   CLI is the terminal/scripting/CI surface. `--json` makes it agent-usable too.
+  Such a sibling should import `capital_cli.sdk` directly (the
+  `CapitalComApp` facade + services) rather than subprocessing the `capctl`
+  binary — same tested engine, no process/parse overhead. See
+  [docs/sdk.md](docs/sdk.md).
