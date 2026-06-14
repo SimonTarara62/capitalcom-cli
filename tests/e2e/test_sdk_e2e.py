@@ -106,11 +106,14 @@ def test_sdk_watchlist_lifecycle():
 
 
 def test_sdk_stream_prices_short():
-    if os.environ.get("CAP_WS_ENABLED", "").lower() not in ("1", "true", "yes"):
-        pytest.skip("set CAP_WS_ENABLED=true for the streaming SDK test")
-
+    # CAP_WS_ENABLED is read from the .env file by config, not exported to the
+    # process env — gate on the loaded config so the test runs when streaming is
+    # enabled in .env (matching how the CLI streaming e2e is driven).
     from capital_cli.core.models import PriceTick
     from capital_cli.sdk import CapitalComApp
+
+    if not CapitalComApp().config.cap_ws_enabled:
+        pytest.skip("streaming disabled (CAP_WS_ENABLED not set in the environment/.env)")
 
     async def _run():
         async with CapitalComApp() as app:
