@@ -58,25 +58,6 @@ class TokenBucket:
             # Wait a bit before retrying
             await asyncio.sleep(0.01)
 
-    async def try_acquire(self, tokens: float = 1.0) -> bool:
-        """
-        Try to acquire tokens without blocking.
-
-        Args:
-            tokens: Number of tokens to acquire
-
-        Returns:
-            True if tokens acquired, False otherwise
-        """
-        async with self._lock:
-            await self._refill()
-
-            if self.tokens >= tokens:
-                self.tokens -= tokens
-                return True
-
-            return False
-
     async def available_tokens(self) -> float:
         """Get current number of available tokens."""
         async with self._lock:
@@ -145,14 +126,6 @@ class RateLimiter:
         if not await self.global_limiter.acquire(tokens=1.0, timeout=timeout):
             return False
         return await self.trading_limiter.acquire(tokens=1.0, timeout=timeout)
-
-    async def get_state(self) -> dict[str, float]:
-        """Get current state of all limiters."""
-        return {
-            "global_tokens": await self.global_limiter.available_tokens(),
-            "session_tokens": await self.session_limiter.available_tokens(),
-            "trading_tokens": await self.trading_limiter.available_tokens(),
-        }
 
 
 # Global rate limiter instance

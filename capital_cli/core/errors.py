@@ -2,8 +2,6 @@
 
 from typing import Any
 
-from .models import ToolResult
-
 # ============================================================
 # Error Codes (from spec section 16)
 # ============================================================
@@ -65,10 +63,6 @@ class CapitalCLIError(Exception):
         self.message = message
         self.details = details or {}
         super().__init__(message)
-
-    def to_tool_result(self) -> ToolResult:
-        """Convert exception to ToolResult."""
-        return ToolResult.failure(code=self.code, message=self.message, details=self.details)
 
 
 class ConfigError(CapitalCLIError):
@@ -192,21 +186,6 @@ class PreviewError(CapitalCLIError):
 # ============================================================
 # Error Helper Functions
 # ============================================================
-
-
-def handle_exception(exc: Exception) -> ToolResult:
-    """Convert any exception to a ToolResult."""
-    if isinstance(exc, CapitalCLIError):
-        return exc.to_tool_result()
-
-    # Unhandled exception
-    import traceback
-
-    return ToolResult.failure(
-        code=ErrorCode.INTERNAL_ERROR,
-        message=f"Internal error: {str(exc)}",
-        details={"traceback": traceback.format_exc()},
-    )
 
 
 def redact_secrets(data: dict[str, Any], secret_keys: set[str] | None = None) -> dict[str, Any]:

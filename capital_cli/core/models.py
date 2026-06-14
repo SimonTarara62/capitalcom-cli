@@ -49,45 +49,6 @@ class PriceResolution(str, Enum):
 
 
 # ============================================================
-# Standard Result Wrapper
-# ============================================================
-
-
-class ToolMeta(BaseModel):
-    """Metadata for tool results."""
-
-    request_id: str = Field(default_factory=lambda: str(uuid4()))
-    ts: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-
-class ToolError(BaseModel):
-    """Error information."""
-
-    code: str = Field(..., description="Error code")
-    message: str = Field(..., description="Human-readable error message")
-    details: dict[str, Any] | None = Field(default=None, description="Additional error details")
-
-
-class ToolResult(BaseModel):
-    """Standard tool result wrapper."""
-
-    ok: bool = Field(..., description="Success status")
-    data: dict[str, Any] | None = Field(default=None, description="Result data")
-    error: ToolError | None = Field(default=None, description="Error information")
-    meta: ToolMeta = Field(default_factory=ToolMeta)
-
-    @classmethod
-    def success(cls, data: dict[str, Any]) -> "ToolResult":
-        """Create a successful result."""
-        return cls(ok=True, data=data, error=None)
-
-    @classmethod
-    def failure(cls, code: str, message: str, details: dict[str, Any] | None = None) -> "ToolResult":
-        """Create a failed result."""
-        return cls(ok=False, data=None, error=ToolError(code=code, message=message, details=details))
-
-
-# ============================================================
 # Session Models
 # ============================================================
 
