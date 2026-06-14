@@ -1,7 +1,7 @@
 """Regression test for issue #8: numeric stop/profit fields equal to 0.0 must
 not be dropped by truthiness checks when building the broker request body."""
 
-from capital_cli.cli.trade_cmds import _build_broker_request
+from capital_cli.services.confirmations import build_broker_request as _build_broker_request
 
 
 def test_zero_valued_stop_and_profit_fields_are_kept():

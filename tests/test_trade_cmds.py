@@ -12,7 +12,10 @@ def mock_trade(monkeypatch):
     sm = MagicMock()
     sm.ensure_logged_in = AsyncMock()
     sm.account_id = "ACC1"
+    # `confirm` still resolves the session manager in the CLI module; the
+    # reads/previews/mutations resolve it (and the client/risk) in the service.
     monkeypatch.setattr("capital_cli.cli.trade_cmds.get_session_manager", lambda: sm)
+    monkeypatch.setattr("capital_cli.services.trading.get_session_manager", lambda: sm)
 
     client = MagicMock()
     resp = MagicMock()
@@ -38,6 +41,7 @@ def mock_trade(monkeypatch):
     client.delete = AsyncMock(return_value=resp)
     client.put = AsyncMock(return_value=resp)
     monkeypatch.setattr("capital_cli.cli.trade_cmds.get_client", lambda: client)
+    monkeypatch.setattr("capital_cli.services.trading.get_client", lambda: client)
 
     # Risk engine: a passing preview.
     preview = MagicMock()
@@ -52,7 +56,7 @@ def mock_trade(monkeypatch):
     risk = MagicMock()
     risk.preview_position = AsyncMock(return_value=preview)
     risk.preview_working_order = AsyncMock(return_value=preview)
-    monkeypatch.setattr("capital_cli.cli.trade_cmds.get_risk_engine", lambda: risk)
+    monkeypatch.setattr("capital_cli.services.trading.get_risk_engine", lambda: risk)
     return client
 
 
@@ -88,7 +92,7 @@ def _arm_execution(monkeypatch):
     risk.validate_execution_guards = MagicMock(return_value=None)
     risk.get_preview = MagicMock(return_value=preview)
     risk.increment_order_count = MagicMock()
-    monkeypatch.setattr("capital_cli.cli.trade_cmds.get_risk_engine", lambda: risk)
+    monkeypatch.setattr("capital_cli.services.trading.get_risk_engine", lambda: risk)
     return risk
 
 
@@ -353,7 +357,7 @@ def test_preview_position_passes_auto_normalize_flag(runner, monkeypatch):
 
     sm = MagicMock()
     sm.ensure_logged_in = AsyncMock()
-    monkeypatch.setattr("capital_cli.cli.trade_cmds.get_session_manager", lambda: sm)
+    monkeypatch.setattr("capital_cli.services.trading.get_session_manager", lambda: sm)
     preview = MagicMock()
     preview.preview_id = "PV1"
     preview.normalized_request = {"epic": "GOLD"}
@@ -363,7 +367,7 @@ def test_preview_position_passes_auto_normalize_flag(runner, monkeypatch):
     preview.estimated_risk_notes = "x"
     risk = MagicMock()
     risk.preview_position = AsyncMock(return_value=preview)
-    monkeypatch.setattr("capital_cli.cli.trade_cmds.get_risk_engine", lambda: risk)
+    monkeypatch.setattr("capital_cli.services.trading.get_risk_engine", lambda: risk)
 
     result = runner.invoke(
         app, ["--json", "trade", "preview-position", "GOLD", "BUY", "0.5", "--auto-normalize-size"]
