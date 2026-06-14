@@ -66,7 +66,7 @@ BAD_ARG_CASES = {
     "stream.prices": ("stream", "prices", ""),
     "stream.candles": ("stream", "candles", "GOLD", "--type", "nope"),
     "stream.alerts": ("stream", "alerts", "GOLD", "100", "--direction", "SIDEWAYS"),
-    "market.search": ("market", "search", "x", "--limit", "0"),
+    "market.search": ("market", "search", "x", "--limit", "notanint"),
 }
 
 
@@ -110,10 +110,13 @@ def test_cli_guard_blocks_mutation(endpoint_id):
     }, body
 
 
-# Read-only endpoints with no bad-id: break auth to exercise their failure path.
-_BAD_CREDS = {"CAP_API_PASSWORD": "definitely-wrong-password", "CAP_PERSIST_SESSION": "false"}
+# Read-only endpoints with no bad-id: point config at a nonexistent env file so
+# NO credentials are found -> CONFIG_MISSING (exit 3), with NO login attempt. This
+# replaces the old bad-password approach, which hammered the real account's login
+# and tripped server-side rate limits.
+_NO_CONFIG = {"CAP_ENV_FILE": "/nonexistent/capctl-missing.env"}
 
-AUTH_FAIL_CASES = {
+MISSING_CONFIG_CASES = {
     "session.ping": ("session", "ping"),
     "session.details": ("session", "details"),
     "session.login": ("session", "login", "--force"),
@@ -125,22 +128,23 @@ AUTH_FAIL_CASES = {
 }
 
 
-@pytest.mark.parametrize("endpoint_id", list(AUTH_FAIL_CASES), ids=list(AUTH_FAIL_CASES))
-def test_cli_auth_failure_path(endpoint_id):
-    res = run_cli(*AUTH_FAIL_CASES[endpoint_id], env_overrides=_BAD_CREDS)
-    # Bad credentials -> auth error (5). session.login surfaces AUTH_FAILED;
-    # downstream reads surface SESSION_* / UPSTREAM. Accept the auth-family codes.
-    assert res.code in (5, 7), f"{endpoint_id}: exit {res.code}\n{res.stderr}"
+@pytest.mark.parametrize("endpoint_id", list(MISSING_CONFIG_CASES), ids=list(MISSING_CONFIG_CASES))
+def test_cli_missing_config(endpoint_id):
+    # No credentials available -> CONFIG_MISSING (exit 3) before any network/login.
+    res = run_cli(*MISSING_CONFIG_CASES[endpoint_id], env_overrides=_NO_CONFIG)
+    assert res.code == 3, f"{endpoint_id}: expected CONFIG_MISSING exit 3, got {res.code}\n{res.stderr}"
+    body = res.json()
+    assert body.get("error", {}).get("code") in {"CONFIG_MISSING", "CONFIG_INVALID"}, body
 
 
 USAGE_ERROR_CASES = {
     "session.time": ("session", "time", "--no-such-flag"),
     "session.encryption_key": ("session", "encryption-key", "--no-such-flag"),
     "session.logout": ("session", "logout", "--no-such-flag"),
-    "account.history_activity": ("account", "history-activity", "--last", "-5"),
+    "account.history_activity": ("account", "history-activity", "--last", "notanint"),
     "position.list": ("trade", "positions", "--no-such-flag"),
     "order.list": ("trade", "orders", "--no-such-flag"),
-    "stream.prices": ("stream", "prices", "GOLD", "--duration", "-1"),
+    "stream.prices": ("stream", "prices", "GOLD", "--duration", "notanumber"),
     "stream.candles": ("stream", "candles", "GOLD", "--no-such-flag"),
     "stream.portfolio": ("stream", "portfolio", "--no-such-flag"),
     "stream.alerts": ("stream", "alerts", "GOLD", "100", "--no-such-flag"),

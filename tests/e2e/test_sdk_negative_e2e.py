@@ -5,6 +5,7 @@ raise auth errors. Opt-in via CAPCTL_E2E=1.
 """
 
 import asyncio
+import contextlib
 import os
 
 import pytest
@@ -23,7 +24,6 @@ if not os.environ.get("CAPCTL_E2E"):
     pytest.skip("set CAPCTL_E2E=1", allow_module_level=True)
 
 EPIC = "BTCUSD"
-_BAD_CREDS = {"CAP_API_PASSWORD": "definitely-wrong-password", "CAP_PERSIST_SESSION": "false"}
 
 
 @pytest.mark.parametrize(
@@ -152,56 +152,45 @@ def test_sdk_nontrade_mutations_require_confirm(endpoint_id):
         asyncio.run(_run(app))
 
 
+@contextlib.contextmanager
+def _missing_config_env():
+    # Strip CAP_* and point the env file at nothing so config has NO credentials.
+    # The SDK then fails at construction with ConfigMissingError — NO network, NO
+    # login attempt (replaces the old bad-password approach that tripped rate limits).
+    from tests.e2e._helpers import _reset_all_singletons
+
+    saved = {k: os.environ.get(k) for k in list(os.environ) if k.startswith("CAP_")}
+    for k in saved:
+        os.environ.pop(k, None)
+    os.environ["CAP_ENV_FILE"] = "/nonexistent/capctl-missing.env"
+    _reset_all_singletons()
+    try:
+        yield
+    finally:
+        os.environ.pop("CAP_ENV_FILE", None)
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v
+        _reset_all_singletons()
+
+
 @pytest.mark.parametrize(
     "endpoint_id",
     ["session.ping", "session.switch", "session.logout", "session.login",
      "account.list", "account.prefs_get", "account.history_activity",
      "account.history_transactions", "market.search", "market.sentiment",
-     "market.nav_root", "position.list", "order.list", "watchlist.list"],
+     "market.nav_root", "position.list", "order.list", "watchlist.list",
+     "stream.prices", "stream.candles", "stream.alerts", "stream.portfolio"],
 )
-def test_sdk_auth_failure_raises(endpoint_id):
+def test_sdk_missing_config_raises(endpoint_id):
+    # An SDK consumer with no credentials gets a CapitalCLIError (ConfigMissingError)
+    # before any network — the safe, non-destructive negative for every read/stream
+    # endpoint that has no bad-identifier form. endpoint_id distinguishes the matrix
+    # cells; the failure mode (missing config) is shared.
     from capital_cli.core.errors import CapitalCLIError
 
-    async def _run(app):
-        calls = {
-            "session.login": lambda: app.session.login(force=True),
-            "session.ping": lambda: app.session.ping(),
-            "session.switch": lambda: app.session.switch_account("x"),
-            "session.logout": lambda: app.session.login(force=True),
-            "account.list": lambda: app.accounts.list(),
-            "account.prefs_get": lambda: app.accounts.get_preferences(),
-            "account.history_activity": lambda: app.accounts.history_activity(),
-            "account.history_transactions": lambda: app.accounts.history_transactions(),
-            "market.search": lambda: app.markets.search("gold"),
-            "market.sentiment": lambda: app.markets.sentiment(["GOLD"]),
-            "market.nav_root": lambda: app.markets.navigation_root(),
-            "position.list": lambda: app.trading.list_positions(),
-            "order.list": lambda: app.trading.list_orders(),
-            "watchlist.list": lambda: app.watchlists.list(),
-        }
+    with _missing_config_env():
         with pytest.raises(CapitalCLIError):
-            await calls[endpoint_id]()
+            from capital_cli.sdk import CapitalComApp
 
-    with sdk_app(env_overrides=_BAD_CREDS) as app:
-        asyncio.run(_run(app))
-
-
-@pytest.mark.parametrize(
-    "endpoint_id", ["stream.prices", "stream.candles", "stream.portfolio", "stream.alerts"]
-)
-def test_sdk_stream_auth_failure(endpoint_id):
-    from capital_cli.core.errors import CapitalCLIError
-
-    async def _run(app):
-        gens = {
-            "stream.prices": app.stream.prices([EPIC], duration=2),
-            "stream.candles": app.stream.candles([EPIC], ["MINUTE"], duration=2),
-            "stream.portfolio": app.stream.portfolio([EPIC], duration=2),
-            "stream.alerts": app.stream.alerts(EPIC, 1.0, duration=2),
-        }
-        with pytest.raises(CapitalCLIError):
-            async for _ in gens[endpoint_id]:
-                break
-
-    with sdk_app(env_overrides=_BAD_CREDS) as app:
-        asyncio.run(_run(app))
+            CapitalComApp()
