@@ -1,6 +1,9 @@
 """Issue #10: session tokens persist across invocations via the state file."""
 
+import sys
 from datetime import datetime, timedelta, timezone
+
+import pytest
 
 from capital_cli.core import session as session_mod
 from capital_cli.core.state import StateStore
@@ -31,6 +34,9 @@ def test_load_is_env_scoped(tmp_path):
     assert store.load_session("demo") is not None
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="POSIX file mode semantics not applicable on Windows"
+)
 def test_file_is_chmod_600(tmp_path):
     store = _store(tmp_path)
     now = datetime.now(timezone.utc).isoformat()
