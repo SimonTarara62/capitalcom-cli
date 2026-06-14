@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-14
+
 ### Fixed
 - Broker request no longer drops stop/profit fields that equal `0.0` (#8).
 - E2E trade lifecycle skips gracefully when the market is not tradeable (#9).
