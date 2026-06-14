@@ -1,8 +1,8 @@
 """CapitalComApp — the SDK facade wiring config + services + risk policy.
 
-EXPERIMENTAL (0.x): one app per process. The underlying services use
-process-global singletons, so constructing a second CapitalComApp with a
-different config in the same process is not supported yet.
+Note (0.x): one app per process. The underlying services use process-global
+singletons, so constructing a second CapitalComApp with a different config in the
+same process is not supported yet.
 """
 
 from __future__ import annotations

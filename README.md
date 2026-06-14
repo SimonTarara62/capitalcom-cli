@@ -39,8 +39,8 @@ The Capital.com web platform is built for clicking; `capctl` is built for **repe
 See [practical use cases](docs/use-cases.md) for worked, copy-pasteable scenarios.
 
 **Scope:** `capctl` is first and foremost a command-line application, but the same
-tested broker engine is also embeddable as an **experimental** Python SDK — see
-[Use as a library](#use-as-a-library-experimental) and [docs/sdk.md](docs/sdk.md).
+tested broker engine is also embeddable as a Python SDK — see
+[Use as a library](#use-as-a-library) and [docs/sdk.md](docs/sdk.md).
 The `capital_cli.core.*` internals remain private and may change between releases.
 The CLI itself is short-lived: each command runs as its own process. By default
 (`CAP_PERSIST_SESSION=true`) the short-lived session tokens are cached so
@@ -50,7 +50,7 @@ session login` is mainly a connectivity/account check.
 
 ## Features
 
-- **Six command groups** covering the main Capital.com Open API workflows — `session`, `market`, `account`, `trade`, `watchlist`, `stream` (see the [API coverage table](docs/api-coverage.md))
+- **Six command groups** covering the **full** Capital.com Open API surface — `session`, `market`, `account`, `trade`, `watchlist`, `stream` — verified by an automated [coverage matrix](docs/api-coverage.md)
 - **Safety-first trading** — trading is off by default; enabling it requires an explicit EPIC allowlist, every execution goes through a two-phase *preview → execute* flow with risk checks, and mutating commands require `--yes`
 - **`--json` everywhere** — every command can emit raw JSON for piping into `jq`, scripts, or CI jobs
 - **Distinct exit codes per failure class** — scripts can branch on *why* a command failed (auth vs. risk-block vs. upstream error)
@@ -58,7 +58,7 @@ session login` is mainly a connectivity/account check.
 - **Demo and live environments** — defaults to demo; live requires explicit opt-in
 - **Built-in rate limiting** — client-side token buckets respect Capital.com's 10 req/s global, 1 req/s session, and trading-burst limits
 - **Session-token caching** — back-to-back commands reuse one login instead of re-authenticating (avoids HTTP 429); on by default, opt out with `CAP_PERSIST_SESSION=false`
-- **Embeddable SDK (experimental)** — the same broker engine ships as an async Python library; see [Use as a library](#use-as-a-library-experimental)
+- **Embeddable SDK** — the same broker engine ships as an async Python library with a stable 0.x surface; see [Use as a library](#use-as-a-library)
 
 ## Installation
 
@@ -367,7 +367,7 @@ capctl stream alerts BTCUSD 75000 --direction ABOVE --duration 3600
 */15 * * * * capctl --json trade positions >> ~/logs/positions.jsonl 2>&1
 ```
 
-## Use as a library (experimental)
+## Use as a library
 
 Beyond the CLI, the same broker engine — risk policy, two-phase preview→execute,
 rate limiting, WebSocket streaming — is available as an embeddable async SDK.
@@ -390,9 +390,12 @@ async def main():
 asyncio.run(main())
 ```
 
-The SDK is **experimental** until 1.0: import paths and the pydantic models are
-intended-stable but may shift between 0.x minors. See [docs/sdk.md](docs/sdk.md)
-for read-only, preview→execute, streaming, and risk-policy examples.
+**Stability:** the documented SDK surface — `CapitalComApp`, `CapitalComConfig`,
+`RiskPolicy`, the service classes, and the `capital_cli.core.models` pydantic
+models — is **stable**: no breaking changes within the 0.x series without a
+deprecation cycle; breaking changes are reserved for a future 1.0. The
+`capital_cli.core.*` internals remain private. See [docs/sdk.md](docs/sdk.md) for
+read-only, preview→execute, streaming, and risk-policy examples.
 
 ## Exit codes
 
@@ -459,7 +462,7 @@ Or use the task runner: `make check` (lint + typecheck + test), `make docs`, `ma
 ## Documentation
 
 - [Full CLI reference](docs/CLI.md) — every command and option (auto-generated)
-- [Using capctl as a Python SDK](docs/sdk.md) — experimental async SDK, import paths, examples, versioning
+- [Using capctl as a Python SDK](docs/sdk.md) — stable async SDK, import paths, examples, versioning
 - [Scripting & automation](docs/scripting.md) — CI credentials, exit codes, jq recipes
 - [Getting started from zero](docs/getting-started.md) — account, API key, install, first trade
 - [Practical use cases](docs/use-cases.md) — what people actually do with capctl, with copy-pasteable scenarios

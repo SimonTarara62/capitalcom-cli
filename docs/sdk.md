@@ -1,10 +1,11 @@
-# Using capctl as a Python SDK (experimental)
+# Using capctl as a Python SDK
 
-> **EXPERIMENTAL.** The SDK is not yet 1.0. The documented import paths
-> (`capital_cli.sdk.{CapitalComApp, CapitalComConfig, RiskPolicy}`) and the
-> pydantic models in `capital_cli.core.models` are intended to be stable, but
-> they **may shift between 0.x minors** until 1.0. Pin a version if you depend
-> on them. See [Versioning](#versioning) below.
+> **Stable surface (pre-1.0).** The documented import paths
+> (`capital_cli.sdk.{CapitalComApp, CapitalComConfig, RiskPolicy}`), the service
+> classes, and the pydantic models in `capital_cli.core.models` are **stable**:
+> no breaking changes within the 0.x series without a deprecation cycle. The
+> `capital_cli.core.*` internals remain private. Breaking changes are reserved
+> for a future 1.0.
 
 `capctl` is first and foremost a CLI, but the same tested broker engine — the
 risk policy, the two-phase preview→execute flow, the rate limiter, the
@@ -204,10 +205,9 @@ raw API responses.
 
 ## Versioning
 
-Until 1.0 the SDK is **experimental**: import paths
-(`capital_cli.sdk.{CapitalComApp, CapitalComConfig, RiskPolicy}`) and the
-pydantic models are documented and intended-stable, but may shift between
-0.x minors. From 1.0:
+The documented SDK surface (`capital_cli.sdk.{CapitalComApp, CapitalComConfig,
+RiskPolicy}`, the service classes, and the `capital_cli.core.models` models) is
+**stable within 0.x** — no breaking changes without a deprecation cycle. From 1.0:
 - Breaking changes to the SDK/service layer only in **major** versions.
 - CLI UX may evolve in minors independently of the SDK contract.
 - The `capital_cli.core.*` internals remain private (no compatibility promise);

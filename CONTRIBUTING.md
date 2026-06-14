@@ -37,7 +37,7 @@ It opens and closes a minimum-size BTCUSD position on the **demo** account.
   risk engine, models, streaming, state. All safety rules live here (private).
 - `capital_cli/services/` — presentation-free domain services (markets, accounts,
   watchlists, trading, streaming, confirmations) composing `core`.
-- `capital_cli/sdk/` — the experimental public facade (`CapitalComApp`,
+- `capital_cli/sdk/` — the public facade (`CapitalComApp`,
   `CapitalComConfig`, `RiskPolicy`).
 - `capital_cli/cli/` — Typer commands. Thin: parse → call a service → render; the
   `cli/` layer never calls the broker API directly.
