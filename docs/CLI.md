@@ -1,6 +1,6 @@
 # `capctl`
 
-capctl — command-line client for the Capital.com Open API.
+capctl — unofficial command-line client for the Capital.com Open API (not affiliated with Capital.com).
 
 **Usage**:
 

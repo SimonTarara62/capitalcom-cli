@@ -1,7 +1,7 @@
 [project]
 name = "capitalcom-cli"
 dynamic = ["version"]
-description = "Command-line client for the Capital.com Open API"
+description = "Unofficial command-line client for the Capital.com Open API"
 authors = [{name = "Simon Tarara"}]
 readme = "README.md"
 requires-python = ">=3.10"
