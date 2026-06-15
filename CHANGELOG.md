@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-06-15
+
+### Added
+- Richer PyPI metadata: search **keywords**, trove **classifiers** (audience,
+  topic, supported Python versions), and `Documentation`/`Changelog`/`Source`
+  project URLs. Improves discoverability on PyPI and Libraries.io. No API or
+  behavior changes.
+
 ## [0.6.1] - 2026-06-15
 
 ### Changed
@@ -130,7 +138,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Persistent state for trade previews and the daily order counter.
 - Documentation: getting-started, use cases, troubleshooting, contributing.
 
-[Unreleased]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.6.1...v0.6.2
 [0.4.0]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/SimonTarara62/capitalcom-cli/compare/v0.1.0...v0.2.0
