@@ -1,6 +1,6 @@
-# capctl — Capital.com CLI
+# capctl — unofficial Capital.com CLI
 
-A fast, scriptable command-line client for the [Capital.com](https://capital.com) Open API, built with Typer and Rich.
+An **unofficial**, fast, scriptable command-line client for the [Capital.com](https://capital.com) Open API, built with Typer and Rich. Independent project — not affiliated with or endorsed by Capital.com.
 
 Browse markets, manage accounts and watchlists, preview and execute trades behind multiple safety guardrails, and stream real-time prices — from your terminal, in human-readable tables or raw JSON for automation.
 

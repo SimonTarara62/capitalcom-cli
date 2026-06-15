@@ -23,7 +23,7 @@ from capital_cli.cli.context import init_state
 app = typer.Typer(
     no_args_is_help=True,
     add_completion=True,
-    help="capctl — command-line client for the Capital.com Open API.",
+    help="capctl — unofficial command-line client for the Capital.com Open API (not affiliated with Capital.com).",
     epilog=(
         "Getting started:\n"
         "  capctl doctor          # check env, credentials, and trading status\n"
