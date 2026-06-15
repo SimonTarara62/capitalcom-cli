@@ -28,6 +28,10 @@ entry text to submit. Keep this in sync when a submission lands.
 - **Status:** eligible; lower priority. Follow that repo's CSV row format if pursued.
 
 ## Unofficial positioning (done in this change set)
+
+Distribution channels (PyPI, Homebrew tap, Terminal Trove) are tracked in
+[distribution.md](distribution.md).
+
 "Unofficial" is now explicit in: the README title + tagline, the existing risk
 disclaimer, the `NOTICE` file, the `pyproject.toml` description (→ PyPI summary),
 the GitHub repo "About", and the `capctl --help` text.
