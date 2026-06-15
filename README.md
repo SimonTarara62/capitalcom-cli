@@ -11,6 +11,10 @@ Browse markets, manage accounts and watchlists, preview and execute trades behin
 [![Release](https://img.shields.io/github/v/release/SimonTarara62/capitalcom-cli?sort=semver)](https://github.com/SimonTarara62/capitalcom-cli/releases)
 [![CLI + SDK coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/SimonTarara62/capitalcom-cli/main/docs/coverage-badge.json)](docs/api-coverage.md)
 
+> **Related:** [Capital.com MCP Server](https://github.com/SimonTarara62/capitalcom-mcp-server)
+> — the same broker engine exposed as a Model Context Protocol (MCP) server for
+> LLM clients (Claude, Cursor, ChatGPT, …).
+
 ```text
 $ capctl market search "gold"
 Markets
