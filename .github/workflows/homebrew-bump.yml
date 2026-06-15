@@ -1,0 +1,17 @@
+name: Bump Homebrew formula
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bump capctl in the tap
+        uses: dawidd6/action-homebrew-bump-formula@v3
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          tap: SimonTarara62/homebrew-tap
+          formula: capctl
+          tag: ${{ github.ref_name }}
+          force: false

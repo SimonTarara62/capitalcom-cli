@@ -80,6 +80,12 @@ Using [uv](https://docs.astral.sh/uv/) instead of pipx:
 uv tool install capitalcom-cli
 ```
 
+With [Homebrew](https://brew.sh/) (macOS/Linux):
+
+```bash
+brew install SimonTarara62/tap/capctl
+```
+
 Plain pip (into the active environment):
 
 ```bash
