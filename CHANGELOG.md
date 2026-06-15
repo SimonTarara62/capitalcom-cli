@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-06-15
+
+### Changed
+- Made the project's **unofficial** status explicit in the README title/tagline,
+  the package description (PyPI summary), the GitHub repository "About", and the
+  `capctl --help` text. Added `docs/awesome-submission.md` tracking curated-list
+  targets and their requirements. No API or behavior changes.
+
 ## [0.6.0] - 2026-06-14
 
 ### Added
